@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>لوحة التحكم - شدات ببجي</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Cairo', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    #ordersList, #inquiriesList {
+      max-width: 900px;
+      margin: 20px auto;
+    }
+
+    .order, .inquiry {
+      background: #1e1e1e;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    .order p, .inquiry p {
+      margin: 5px 0;
+    }
+
+    .order button, .inquiry button {
+      margin: 5px 5px 0 0;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .paid {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .not-paid {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .delete-btn {
+      background-color: #9e9e9e;
+      color: white;
+    }
+
+    .logout-btn {
+      display: block;
+      margin: auto;
+      background-color: orange;
+      color: black;
+      font-weight: bold;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .status {
+      font-weight: bold;
+      color: orange;
+    }
+  </style>
+</head>
+<body>
+  <h2>طلبات الشحن</h2>
+  <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+
+  <div id="ordersList"></div>
+
+  <h2>الاستفسارات</h2>
+  <div id="inquiriesList"></div>
+
+  <script>
+    async function loadOrders() {
+      const res = await fetch("http://localhost:3000/api/admin/orders");
+      if (res.status === 403) {
+        alert("يرجى تسجيل الدخول");
+        window.location.href = "login.html";
+        return;
+      }
+
+      const orders = await res.json();
+      const container = document.getElementById("ordersList");
+      container.innerHTML = "";
+
+      orders.forEach(order => {
+        const div = document.createElement("div");
+        div.classList.add("order");
+        div.innerHTML = `
+          <p><strong>الاسم:</strong> ${order.name}</p>
+          <p><strong>ID:</strong> ${order.playerId}</p>
+          <p><strong>البريد:</strong> ${order.email}</p>
+          <p><strong>نوع الشحن:</strong> ${order.type}</p>
+          <p><strong>UC / الحزمة:</strong> ${order.ucAmount || order.bundle}</p>
+          <p><strong>المبلغ:</strong> ${order.totalAmount} $</p>
+          <p><strong>رقم التحويل:</strong> ${order.transactionId}</p>
+          <p><strong>الحالة:</strong> <span class="status">${order.status}</span></p>
+          <button class="paid" onclick="updateStatus(${order.id}, 'تم الدفع')">تم الدفع</button>
+          <button class="not-paid" onclick="updateStatus(${order.id}, 'لم يتم الدفع')">لم يتم الدفع</button>
+          <button class="delete-btn" onclick="deleteOrder(${order.id})">🗑️ مسح</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function loadInquiries() {
+      const res = await fetch("http://localhost:3000/api/admin/inquiries");
+      const inquiries = await res.json();
+      const container = document.getElementById("inquiriesList");
+      container.innerHTML = "";
+
+      inquiries.forEach(inquiry => {
+        const div = document.createElement("div");
+        div.classList.add("inquiry");
+        div.innerHTML = `
+          <p><strong>البريد:</strong> ${inquiry.email}</p>
+          <p><strong>الرسالة:</strong> ${inquiry.message}</p>
+          <button class="delete-btn" onclick="deleteInquiry(${inquiry.id})">🗑️ حذف</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function updateStatus(id, status) {
+      await fetch("http://localhost:3000/api/admin/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status })
+      });
+      loadOrders();
+    }
+
+    async function deleteOrder(id) {
+      if (confirm("هل أنت متأكد من حذف الطلب؟")) {
+        await fetch("http://localhost:3000/api/admin/delete-order", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        loadOrders();
+      }
+    }
+
+    async function deleteInquiry(id) {
+      if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
+        await fetch("http://localhost:3000/api/admin/delete-inquiry", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        loadInquiries();
+      }
+    }
+
+    async function logout() {
+      await fetch("http://localhost:3000/api/admin/logout", { method: "POST" });
+      window.location.href = "login.html";
+    }
+
+    // تحميل البيانات عند فتح الصفحة
+    loadOrders();
+    loadInquiries();
+  </script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!-- بداية الملف index.html -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>STORE King个ESPORTSツ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    form {
+      max-width: 700px;
+      margin: auto;
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      background-color: #2c2c2c;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 5px;
+    }
+
+    .section-title {
+      margin-top: 30px;
+      font-size: 1.2em;
+      color: #ffa726;
+    }
+
+    .options {
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .option {
+      background-color: #2c2c2c;
+      padding: 10px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      flex: 1 1 30%;
+    }
+
+    .option.selected {
+      border-color: #ffa726;
+    }
+
+    .option img {
+      max-width: 100%;
+      max-height: 100px;
+      object-fit: contain;
+      margin-bottom: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #ffa726;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .contact {
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>STORE King个ESPORTSツ</h2>
+<form id="orderForm">
+  <input type="text" id="name" placeholder="الاسم داخل اللعبة" required />
+  <input type="text" id="playerId" placeholder="ID اللاعب" required />
+  <input type="email" id="email" placeholder="البريد الإلكتروني" required />
+
+  <div class="section-title">اختر عدد الشدات:</div>
+  <div id="ucOptions" class="options">
+    <div class="option" data-value="60" data-price="45">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546007887MVeNUtB6.png" alt="60 UC" />
+      60 UC <br> 45 جنيه
+    </div>
+    <div class="option" data-value="325" data-price="235">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546030876PIvqwGaa.png" alt="325 UC" />
+      325 UC <br> 235 جنيه
+    </div>
+    <div class="option" data-value="660" data-price="460">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546030876PIvqwGaa.png" alt="660 UC" />
+      660 UC <br> 460 جنيه
+    </div>
+    <div class="option" data-value="1800" data-price="1140">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546052747L5gSu7VB.png" alt="1800 UC" />
+      1800 UC <br> 1140 جنيه
+    </div>
+    <div class="option" data-value="3850" data-price="2260">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546061912PLgMlY23.png" alt="3850 UC" />
+      3850 UC <br> 2260 جنيه
+    </div>
+    <div class="option" data-value="8100" data-price="4600">
+      <img src="https://cdn.midasbuy.com/images/apps/pubgm/1599546071746KqkIhrzG.png" alt="8100 UC" />
+      8100 UC <br> 4600 جنيه
+    </div>
+  </div>
+
+  <div class="section-title">أو اختر حزمة ازدهار:</div>
+  <div id="bundleOptions" class="options">
+    <div class="option" data-value="حزمة الازدهار الاولى" data-price="50">
+      <img src="https://cdn.midasbuy.com/images/FirstPurchasePack.bacd265b.jpg" />
+      حزمة الازدهار الاولى <br> 50 جنيه
+    </div>
+    <div class="option" data-value="حزمة الازدهار الثانية" data-price="145">
+      <img src="https://cdn.midasbuy.com/images/UpgradablePack.8b6dc3a7.jpg" />
+      حزمة الازدهار الثانية <br> 145 جنيه
+    </div>
+    <div class="option" data-value="حزمة الازدهار الثالثة" data-price="240">
+      <img src="https://cdn.midasbuy.com/images/MythicPack.25332821.jpg" />
+      حزمة الازدهار الثالثة <br> 240 جنيه
+    </div>
+  </div>
+
+  <input type="text" id="transactionId" placeholder="رقم التحويل" required />
+  <input type="text" id="totalAmount" placeholder="المبلغ الإجمالي" readonly />
+  <p style="color: orange; text-align: center;">قم بالتحويل إلى هذا الرقم: <strong>010216546351</strong></p>
+
+  <button type="submit">إرسال الطلب</button>
+</form>
+
+<div class="contact">
+  <h2>هل لديك استفسار؟</h2>
+  <form id="contactForm">
+    <input type="text" id="contactName" placeholder="اسمك" required />
+    <input type="email" id="contactEmail" placeholder="بريدك الإلكتروني" required />
+    <textarea id="contactMessage" placeholder="اكتب استفسارك هنا..." required></textarea>
+    <button type="submit">إرسال الاستفسار</button>
+  </form>
+</div>
+
+<script>
+  const ucOptions = document.querySelectorAll('#ucOptions .option');
+  const bundleOptions = document.querySelectorAll('#bundleOptions .option');
+  let selectedUC = null;
+  let selectedBundle = null;
+
+  function updateTotal() {
+    const total = (selectedUC?.dataset.price || 0) * 1 + (selectedBundle?.dataset.price || 0) * 1;
+    document.getElementById('totalAmount').value = total + " جنيه";
+  }
+
+  ucOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      ucOptions.forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+      selectedUC = option;
+      updateTotal();
+    });
+  });
+
+  bundleOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      bundleOptions.forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+      selectedBundle = option;
+      updateTotal();
+    });
+  });
+
+  document.getElementById('orderForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!selectedUC && !selectedBundle) {
+      alert("يجب اختيار شدات أو حزمة ازدهار واحدة على الأقل");
+      return;
+    }
+
+    const order = {
+      name: document.getElementById('name').value,
+      playerId: document.getElementById('playerId').value,
+      email: document.getElementById('email').value,
+      ucAmount: selectedUC ? selectedUC.dataset.value : "",
+      bundle: selectedBundle ? selectedBundle.dataset.value : "",
+      transactionId: document.getElementById('transactionId').value,
+      totalAmount: document.getElementById('totalAmount').value.replace(" جنيه", "")
+    };
+
+    const res = await fetch("http://localhost:3000/api/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order)
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      alert("تم إرسال الطلب بنجاح ✅");
+      document.getElementById('orderForm').reset();
+      ucOptions.forEach(o => o.classList.remove('selected'));
+      bundleOptions.forEach(o => o.classList.remove('selected'));
+      selectedUC = null;
+      selectedBundle = null;
+      updateTotal();
+    } else {
+      alert("حدث خطأ، حاول مرة أخرى ❌");
+    }
+  });
+
+  document.getElementById('contactForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const contact = {
+      email: document.getElementById('contactEmail').value,
+      message: document.getElementById('contactMessage').value
+    };
+
+    const res = await fetch("http://localhost:3000/api/inquiry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contact)
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      alert("تم إرسال الاستفسار وسيتم الرد عبر بريدك الإلكتروني.");
+      document.getElementById('contactForm').reset();
+    } else {
+      alert("حدث خطأ أثناء إرسال الاستفسار.");
+    }
+  });
+</script>
+</body>
+</html>
