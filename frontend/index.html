@@ -193,7 +193,7 @@
       totalAmount
     };
 
-    const res = await fetch("https://store-king-esport-production.up.railway.app/api/order", {
+    const res = await fetch("/api/order", ...), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(order)
