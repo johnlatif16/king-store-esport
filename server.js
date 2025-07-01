@@ -314,6 +314,7 @@ app.post('/api/inquiry', async (req, res) => {
         `استفسار جديد من ${inquiry.email}\n\nالرسالة:\n${inquiry.message}`
       );
     }
+
     res.json({ success: true, message: "تم استلام الاستفسار بنجاح" });
   } catch (error) {
     console.error('Inquiry error:', error);
