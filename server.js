@@ -24,22 +24,30 @@ function saveDB() {
 
 // إعداد CORS
 const allowedOrigins = [
-  'https://store-king-esport-production-e6f8.up.railway.app',
+  'https://store-king-esport-production-f149.up.railway.app',
   'http://localhost:3000'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const allowed = [
+      'https://store-king-esport-production-f149.up.railway.app',
+      'http://localhost:3000'
+    ];
+    if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
+      console.error('CORS blocked for origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
@@ -47,16 +55,20 @@ app.options('*', cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 // إعداد الجلسة
+const session = require('express-session');
+const FileStore = require('session-file-store')(session); // أضف هذا
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: new FileStore({ path: './sessions' }), // أضف هذا
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: true, // يجب أن يكون true في الإنتاج
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000,
-    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : 'localhost'
+    sameSite: 'none',
+    domain: '.railway.app',
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 // إضافة هذا المسار قبل middleware المصادقة
@@ -123,17 +135,25 @@ app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: "اسم المستخدم وكلمة المرور مطلوبان" });
+    }
+
     if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-      req.session.admin = true;
-      // حفظ الجلسة بشكل صريح
-      req.session.save(err => {
-        if (err) {
-          console.error('Session save error:', err);
-          return res.status(500).json({ success: false, message: "فشل في حفظ الجلسة" });
-        }
-        return res.json({ 
-          success: true,
-          message: "تم تسجيل الدخول بنجاح"
+      req.session.regenerate(err => {
+        if (err) throw err;
+        
+        req.session.admin = true;
+        req.session.save(err => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ success: false, message: "فشل في حفظ الجلسة" });
+          }
+          return res.json({ 
+            success: true,
+            message: "تم تسجيل الدخول بنجاح",
+            session: req.session
+          });
         });
       });
     } else {
@@ -150,6 +170,7 @@ app.post('/api/admin/login', async (req, res) => {
     });
   }
 });
+
 app.post('/api/admin/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -162,6 +183,7 @@ app.post('/api/admin/logout', (req, res) => {
 
 // نقطة التحقق من الجلسة
 app.get('/api/admin/check-session', (req, res) => {
+  console.log('Session check:', req.session); // للتتبع
   if (req.session && req.session.admin) {
     res.json({ 
       authenticated: true,
@@ -170,7 +192,8 @@ app.get('/api/admin/check-session', (req, res) => {
   } else {
     res.status(401).json({ 
       authenticated: false,
-      message: "غير مصرح بالوصول" 
+      message: "غير مصرح بالوصول",
+      session: req.session
     });
   }
 });
