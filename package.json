@@ -25,7 +25,8 @@
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
-    "nodemailer": "^7.0.3",
+    "multer": "^2.0.1",
+    "nodemailer": "^7.0.4",
     "sqlite3": "^5.1.7"
   }
 }

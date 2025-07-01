@@ -20,7 +20,7 @@ const db = new sqlite3.Database("./data.db", sqlite3.OPEN_READWRITE | sqlite3.OP
 
 // إعدادات الميدل وير
 app.use(cors({ 
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000','https://store-king-esport-production-9e19.up.railway.app/'],
   credentials: true 
 }));
 app.use(bodyParser.json());

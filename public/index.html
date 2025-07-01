@@ -84,15 +84,39 @@
     .contact {
       margin-top: 40px;
     }
-  </style>
+    
+
+  .clan-link-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .clan-link {
+    color: white;
+    font-size: 24px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  .clan-link:hover {
+    text-decoration: underline;
+  }
+</style>
+
 </head>
 <body>
 
-<h2>STORE King个ESPORTSツ</h2>
+<div class="clan-link">
+  <a href="https://clan-king-esport-production.up.railway.app/" class="clan-link">
+    للرجوع الى موقع الكلان اضغط هنا
+  </a>
+</div>
 <form id="orderForm">
   <input type="text" id="name" placeholder="الاسم داخل اللعبة" required />
   <input type="text" id="playerId" placeholder="ID اللاعب" required />
-  <input type="email" id="email" placeholder="البريد الإلكتروني" required />
+  <input type="email" id="email" placeholder="البريد الالكتروني للتواصل (لو قي مشكلة يعني)" required />
 
   <div class="section-title">اختر عدد الشدات:</div>
   <div id="ucOptions" class="options">
@@ -145,6 +169,7 @@
   <button type="submit">إرسال الطلب</button>
 </form>
 
+<p style="text-align: center;"><a href="https://wa.me/201274445091" style="color: green; font-weight: bold;"><span>كلمنا واتساب لبيع الشعبية</span></a></p>
 <div class="contact">
   <h2>هل لديك استفسار؟</h2>
   <form id="contactForm">
@@ -202,7 +227,7 @@
     };
 
     try {
-      const res = await fetch("http://localhost:3000/api/order", {
+      const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -235,7 +260,7 @@
     };
 
     try {
-      const res = await fetch("http://localhost:3000/api/inquiry", {
+      const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/inquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
