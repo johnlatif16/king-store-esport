@@ -1,205 +1,230 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const session = require("express-session");
+const sqlite3 = require("sqlite3").verbose();
+const nodemailer = require("nodemailer");
+const path = require("path");
 require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const FileStore = require('session-file-store')(session);
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const nodemailer = require('nodemailer');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// تهيئة قاعدة البيانات
-const DB_FILE = path.join(__dirname, 'database.json');
-let db = { orders: [], inquiries: [], admin: { username: process.env.ADMIN_USER, password: process.env.ADMIN_PASS } };
+// إعداد قاعدة البيانات مع تعامل مع الأخطاء
+const db = new sqlite3.Database("./data.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+  if (err) {
+    console.error("Error opening database:", err.message);
+    process.exit(1);
+  }
+  console.log("Connected to SQLite database");
+});
 
-if (fs.existsSync(DB_FILE)) {
-  db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-}
-
-function saveDB() {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
-
-// إعداد CORS
-const allowedOrigins = [
-  'https://store-king-esport-production-f149.up.railway.app',
-  'http://localhost:3000'
-];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.error('CORS blocked for origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
+// إعدادات الميدل وير
+app.use(cors({ 
+  origin: true,
+  credentials: true 
+}));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// تحديد المسار الصحيح للملفات الثابتة
+app.use(express.static(path.join(__dirname, 'public')));
 
 // إعداد الجلسة
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: 'your-secret-key',
   resave: false,
-  saveUninitialized: false,
-  store: new FileStore({ path: './sessions' }),
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
+  saveUninitialized: true,
+  cookie: { 
+    secure: false,
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : 'localhost',
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000 // 24 ساعة
   }
 }));
 
-// نقطة فحص الخادم
-app.get('/api/admin/check', (req, res) => {
-  res.json({ 
-    alive: true,
-    session: req.session 
+// إنشاء الجداول
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    playerId TEXT,
+    email TEXT,
+    type TEXT,
+    ucAmount TEXT,
+    bundle TEXT,
+    totalAmount TEXT,
+    transactionId TEXT,
+    status TEXT DEFAULT 'لم يتم الدفع'
+  )`, (err) => {
+    if (err) console.error("Error creating orders table:", err);
+  });
+
+  db.run(`CREATE TABLE IF NOT EXISTS inquiries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT,
+    message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`, (err) => {
+    if (err) console.error("Error creating inquiries table:", err);
   });
 });
 
-// middleware المصادقة
-function adminAuth(req, res, next) {
-  console.log('Session data:', req.session);
-  if (req.session && req.session.admin) {
-    next();
-  } else {
-    console.error('Access denied for:', req.path);
-    res.status(401).json({ 
-      success: false, 
-      message: "غير مصرح بالوصول - يرجى تسجيل الدخول"
-    });
-  }
-}
-
 // إعداد البريد الإلكتروني
 const transporter = nodemailer.createTransport({
-  service: process.env.SMTP_SERVICE || 'gmail',
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
-  secure: false,
+  service: process.env.SMTP_SERVICE,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    pass: process.env.SMTP_PASS,
   },
-  tls: {
-    rejectUnauthorized: false
-  }
 });
 
-async function sendEmail(to, subject, text) {
-  try {
-    const mailOptions = {
-      from: `"STORE King" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      text,
-      html: `<p>${text.replace(/\n/g, '<br>')}</p>`
-    };
+// Routes لخدمة صفحات HTML
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return false;
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get("/dashboard", (req, res) => {
+  if (!req.session.admin) {
+    return res.redirect('/login');
   }
-}
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
 
-// ========== نقاط النهاية ========== //
-
-app.post('/api/admin/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: "اسم المستخدم وكلمة المرور مطلوبان" });
+// API Routes
+app.post("/api/order", (req, res) => {
+  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+  const type = ucAmount ? "UC" : "Bundle";
+  
+  db.run(
+    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "حدث خطأ أثناء الحفظ" });
+      }
+      res.json({ success: true, id: this.lastID });
     }
+  );
+});
 
-    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-      req.session.regenerate(err => {
+app.post("/api/inquiry", async (req, res) => {
+  const { email, message } = req.body;
+  
+  try {
+    db.run(
+      "INSERT INTO inquiries (email, message) VALUES (?, ?)",
+      [email, message],
+      async function(err) {
         if (err) throw err;
         
-        req.session.admin = true;
-        req.session.save(err => {
-          if (err) {
-            console.error('Session save error:', err);
-            return res.status(500).json({ success: false, message: "فشل في حفظ الجلسة" });
-          }
-          return res.json({ 
-            success: true,
-            message: "تم تسجيل الدخول بنجاح",
-            session: req.session
-          });
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: process.env.SMTP_USER,
+          subject: "استفسار جديد من العميل",
+          html: `<p><strong>البريد:</strong> ${email}</p><p><strong>الرسالة:</strong> ${message}</p>`,
         });
-      });
-    } else {
-      return res.status(401).json({ 
-        success: false, 
-        message: "بيانات الدخول غير صحيحة" 
-      });
-    }
+        
+        res.json({ success: true });
+      }
+    );
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: "حدث خطأ في الخادم" 
-    });
+    console.error("Error:", error);
+    res.status(500).json({ message: "فشل إرسال البريد الإلكتروني" });
   }
 });
 
-app.post('/api/admin/logout', (req, res) => {
+// Admin Routes
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === "john" && password === "latif") {
+    req.session.admin = true;
+    return res.json({ success: true });
+  }
+  res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
+});
+
+app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(err => {
     if (err) {
       return res.status(500).json({ success: false });
     }
-    res.clearCookie('connect.sid');
     res.json({ success: true });
   });
 });
 
-app.get('/api/admin/check-session', (req, res) => {
-  console.log('Session check:', req.session);
-  if (req.session && req.session.admin) {
-    res.json({ 
-      authenticated: true,
-      session: req.session 
-    });
-  } else {
-    res.status(401).json({ 
-      authenticated: false,
-      message: "غير مصرح بالوصول",
-      session: req.session
-    });
-  }
+app.get("/api/admin/orders", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ message: "غير مصرح" });
+  
+  db.all("SELECT * FROM orders ORDER BY id DESC", (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "خطأ في قاعدة البيانات" });
+    }
+    res.json(rows);
+  });
 });
 
-// ... بقية نقاط النهاية (orders, inquiries, etc) تبقى كما هي بدون تغيير ...
-
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Endpoint not found' });
+app.get("/api/admin/inquiries", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ message: "غير مصرح" });
+  
+  db.all("SELECT * FROM inquiries ORDER BY created_at DESC", (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "خطأ في قاعدة البيانات" });
+    }
+    res.json(rows);
+  });
 });
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Internal server error' });
+app.post("/api/admin/update-status", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ message: "غير مصرح" });
+  
+  const { id, status } = req.body;
+  db.run(
+    "UPDATE orders SET status = ? WHERE id = ?",
+    [status, id],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "حدث خطأ أثناء التحديث" });
+      }
+      res.json({ success: true });
+    }
+  );
 });
 
+app.delete("/api/admin/delete-order", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ message: "غير مصرح" });
+  
+  const { id } = req.body;
+  db.run("DELETE FROM orders WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "حدث خطأ أثناء الحذف" });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.delete("/api/admin/delete-inquiry", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ message: "غير مصرح" });
+  
+  const { id } = req.body;
+  db.run("DELETE FROM inquiries WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "حدث خطأ أثناء الحذف" });
+    }
+    res.json({ success: true });
+  });
+});
+
+// تشغيل السيرفر
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

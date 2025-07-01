@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Login King</title>
+  <title>Admin Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
   <style>
@@ -16,6 +16,7 @@
       justify-content: center;
       height: 100vh;
     }
+
     .login-container {
       background: #1e1e1e;
       padding: 30px;
@@ -25,9 +26,11 @@
       max-width: 400px;
       text-align: center;
     }
+
     .login-container h2 {
       margin-bottom: 25px;
     }
+
     input {
       width: 100%;
       padding: 12px;
@@ -37,6 +40,7 @@
       background: #2a2a2a;
       color: #fff;
     }
+
     button {
       background-color: orange;
       color: black;
@@ -48,104 +52,38 @@
       margin-top: 15px;
       cursor: pointer;
     }
-    .error-message {
-      color: #f44336;
-      margin-top: 10px;
-      display: none;
-    }
   </style>
 </head>
 <body>
   <div class="login-container">
-    <h2>Admin Login King</h2>
+    <h2>Admin Panel Login</h2>
     <form id="loginForm">
       <input type="text" id="username" placeholder="Username" required />
       <input type="password" id="password" placeholder="Password" required />
-      <div id="errorMessage" class="error-message"></div>
       <button type="submit">Login</button>
     </form>
   </div>
 
   <script>
-document.getElementById("loginForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
-  const errorElement = document.getElementById("errorMessage");
-  errorElement.style.display = "none";
-  
-  try {
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'جاري التسجيل...';
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-    // أضف تحقق من الاتصال أولاً
-    const healthCheck = await fetch("https://store-king-esport-production-f149.up.railway.app/api/admin/check");
-    if (!healthCheck.ok) throw new Error("الخادم غير متاح");
-
-    const response = await fetch("https://store-king-esport-production-f149.up.railway.app/api/admin/login", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      credentials: "include", // مهم للكوكيز
-      body: JSON.stringify({
-        username: document.getElementById("username").value,
-        password: document.getElementById("password").value
-      })
-    });
-
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Login';
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "فشل في تسجيل الدخول");
-    }
-
-    const result = await response.json();
-    
-    if (result.success) {
-      // انتظر 500ms لضمان حفظ الجلسة
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const sessionCheck = await fetch("https://store-king-esport-production-f149.up.railway.app/api/admin/check-session", {
-        credentials: "include"
+      const res = await fetch("http://localhost:3000/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password })
       });
-      
-      if (sessionCheck.ok) {
+
+      const data = await res.json();
+      if (data.success) {
         window.location.href = "dashboard.html";
       } else {
-        throw new Error("فشل في إنشاء الجلسة، حاول مرة أخرى");
+        alert("Login failed");
       }
-    } else {
-      throw new Error(result.message || "بيانات الدخول غير صحيحة");
-    }
-  } catch (error) {
-    errorElement.textContent = error.message;
-    errorElement.style.display = "block";
-    console.error('Login error:', error);
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Login';
-  }
-});
-
-    // التحقق من الجلسة الحالية عند تحميل الصفحة
-    async function checkExistingSession() {
-      try {
-        const response = await fetch("https://store-king-esport-production-f149.up.railway.app/api/admin/check-session", {
-          credentials: "include"
-        });
-        
-        if (response.ok) {
-          window.location.href = "dashboard.html";
-        }
-      } catch (error) {
-        console.log('No active session:', error);
-      }
-    }
-
-    // تشغيل التحقق عند تحميل الصفحة
-    checkExistingSession();
+    });
   </script>
 </body>
 </html>
