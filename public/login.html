@@ -81,7 +81,7 @@
       if (data.success) {
         window.location.href = "dashboard.html";
       } else {
-        alert("Login failed");
+        alert("Login failed: " + (data.message || "Invalid credentials"));
       }
     });
   </script>

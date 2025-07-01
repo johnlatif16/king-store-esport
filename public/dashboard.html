@@ -59,6 +59,11 @@
       color: white;
     }
 
+    .reply-btn {
+      background-color: #2196F3;
+      color: white;
+    }
+
     .logout-btn {
       display: block;
       margin: auto;
@@ -75,27 +80,140 @@
       font-weight: bold;
       color: orange;
     }
+
+    .reply-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .reply-content {
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 500px;
+    }
+
+    .reply-content h3 {
+      margin-top: 0;
+      color: orange;
+    }
+
+    .reply-content textarea {
+      width: 100%;
+      min-height: 150px;
+      margin: 10px 0;
+      padding: 10px;
+      background: #2a2a2a;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 5px;
+    }
+
+    .reply-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .tab-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .tab-btn {
+      padding: 10px 20px;
+      background: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .tab-btn.active {
+      background: orange;
+      color: black;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .inquiry.replied {
+      opacity: 0.7;
+      border-left: 4px solid #4CAF50;
+    }
   </style>
 </head>
 <body>
-  <h2>طلبات الشحن</h2>
+  <h2>لوحة التحكم</h2>
   <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
 
-  <div id="ordersList"></div>
+  <div class="tab-container">
+    <button class="tab-btn active" onclick="openTab('ordersTab')">طلبات الشحن</button>
+    <button class="tab-btn" onclick="openTab('inquiriesTab')">الاستفسارات</button>
+    <button class="tab-btn" onclick="openTab('messagesTab')">إرسال رسائل</button>
+  </div>
 
-  <h2>الاستفسارات</h2>
-  <div id="inquiriesList"></div>
+  <div id="ordersTab" class="tab-content active">
+    <div id="ordersList"></div>
+  </div>
+
+  <div id="inquiriesTab" class="tab-content">
+    <div id="inquiriesList"></div>
+  </div>
+
+  <div id="messagesTab" class="tab-content">
+    <div class="email-form" style="max-width: 900px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px;">
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #ffa726;">البريد الإلكتروني:</label>
+        <input type="email" id="clientEmail" style="width: 100%; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #ffa726;">عنوان الرسالة:</label>
+        <input type="text" id="emailSubject" style="width: 100%; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: #ffa726;">نص الرسالة:</label>
+        <textarea id="emailMessage" style="width: 100%; min-height: 150px; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;"></textarea>
+      </div>
+      <button class="paid" onclick="sendDirectMessage()" style="padding: 10px 20px;">إرسال الرسالة</button>
+    </div>
+  </div>
+
+  <div id="replyModal" class="reply-modal">
+    <div class="reply-content">
+      <h3>رد على الاستفسار</h3>
+      <p id="originalMessage"></p>
+      <textarea id="replyText" placeholder="اكتب ردك هنا..."></textarea>
+      <div class="reply-buttons">
+        <button class="paid" onclick="sendReply()">إرسال الرد</button>
+        <button class="delete-btn" onclick="closeReplyModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
 
   <script>
+    let currentInquiryId = null;
+    let currentInquiryEmail = null;
+    let currentInquiryMessage = null;
+
     async function loadOrders() {
       const res = await fetch("http://localhost:3000/api/admin/orders", {
         credentials: "include"
       });
-      if (res.status === 403) {
-        alert("يرجى تسجيل الدخول");
-        window.location.href = "login.html";
-        return;
-      }
       const orders = await res.json();
       const container = document.getElementById("ordersList");
       container.innerHTML = "";
@@ -105,16 +223,18 @@
         div.classList.add("order");
         div.innerHTML = `
           <p><strong>الاسم:</strong> ${order.name}</p>
-          <p><strong>ID:</strong> ${order.playerId}</p>
+          <p><strong>ID اللاعب:</strong> ${order.playerId}</p>
           <p><strong>البريد:</strong> ${order.email}</p>
-          <p><strong>نوع الشحن:</strong> ${order.type}</p>
-          <p><strong>UC / الحزمة:</strong> ${order.ucAmount || order.bundle}</p>
-          <p><strong>المبلغ:</strong> ${order.totalAmount} $</p>
+          <p><strong>النوع:</strong> ${order.type}</p>
+          <p><strong>الكمية:</strong> ${order.ucAmount || order.bundle}</p>
+          <p><strong>المبلغ:</strong> ${order.totalAmount}</p>
           <p><strong>رقم التحويل:</strong> ${order.transactionId}</p>
-          <p><strong>الحالة:</strong> <span class="status">${order.status}</span></p>
-          <button class="paid" onclick="updateStatus(${order.id}, 'تم الدفع')">تم الدفع</button>
-          <button class="not-paid" onclick="updateStatus(${order.id}, 'لم يتم الدفع')">لم يتم الدفع</button>
-          <button class="delete-btn" onclick="deleteOrder(${order.id})">🗑️ مسح</button>
+          <p class="status"><strong>الحالة:</strong> ${order.status}</p>
+          <button class="${order.status === 'تم الدفع' ? 'paid' : 'not-paid'}" 
+                  onclick="updateStatus(${order.id}, '${order.status === 'تم الدفع' ? 'لم يتم الدفع' : 'تم الدفع'}')">
+            ${order.status === 'تم الدفع' ? 'تم الدفع' : 'لم يتم الدفع'}
+          </button>
+          <button class="delete-btn" onclick="deleteOrder(${order.id})">حذف</button>
         `;
         container.appendChild(div);
       });
@@ -131,13 +251,109 @@
       inquiries.forEach(inquiry => {
         const div = document.createElement("div");
         div.classList.add("inquiry");
+        if (inquiry.status === 'تم الرد') {
+          div.classList.add("replied");
+        }
+        
         div.innerHTML = `
           <p><strong>البريد:</strong> ${inquiry.email}</p>
+          <p><strong>التاريخ:</strong> ${new Date(inquiry.created_at).toLocaleString()}</p>
           <p><strong>الرسالة:</strong> ${inquiry.message}</p>
+          <button class="reply-btn" onclick="openReplyModal(${inquiry.id}, '${inquiry.email.replace(/'/g, "\\'")}', '${inquiry.message.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')">
+            ${inquiry.status === 'تم الرد' ? '✉️ إعادة رد' : '✉️ رد'}
+          </button>
           <button class="delete-btn" onclick="deleteInquiry(${inquiry.id})">🗑️ حذف</button>
         `;
         container.appendChild(div);
       });
+    }
+
+    function openReplyModal(id, email, message) {
+      currentInquiryId = id;
+      currentInquiryEmail = email;
+      currentInquiryMessage = message;
+      
+      document.getElementById("originalMessage").innerHTML = `
+        <strong>الرسالة الأصلية من ${email}:</strong><br>
+        ${message}
+      `;
+      document.getElementById("replyText").value = "";
+      document.getElementById("replyModal").style.display = "flex";
+    }
+
+    function closeReplyModal() {
+      document.getElementById("replyModal").style.display = "none";
+    }
+
+    async function sendReply() {
+      const replyText = document.getElementById("replyText").value.trim();
+      if (!replyText) {
+        alert("يرجى كتابة رد");
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:3000/api/admin/reply-inquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            inquiryId: currentInquiryId,
+            email: currentInquiryEmail,
+            message: currentInquiryMessage,
+            reply: replyText
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert("تم إرسال الرد بنجاح");
+          closeReplyModal();
+          loadInquiries();
+        } else {
+          alert("حدث خطأ: " + (result.message || "فشل إرسال الرد"));
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("حدث خطأ أثناء محاولة الإرسال");
+      }
+    }
+
+    async function sendDirectMessage() {
+      const email = document.getElementById("clientEmail").value.trim();
+      const subject = document.getElementById("emailSubject").value.trim();
+      const message = document.getElementById("emailMessage").value.trim();
+
+      if (!email || !subject || !message) {
+        alert("يرجى ملء جميع الحقول");
+        return;
+      }
+
+      if (!confirm(`هل تريد إرسال هذه الرسالة إلى ${email}؟`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:3000/api/admin/send-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, subject, message })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert("تم إرسال الرسالة بنجاح");
+          document.getElementById("clientEmail").value = "";
+          document.getElementById("emailSubject").value = "";
+          document.getElementById("emailMessage").value = "";
+        } else {
+          alert("حدث خطأ: " + (result.message || "فشل إرسال الرسالة"));
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("حدث خطأ أثناء محاولة الإرسال");
+      }
     }
 
     async function updateStatus(id, status) {
@@ -172,6 +388,19 @@
         });
         loadInquiries();
       }
+    }
+
+    function openTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
     }
 
     async function logout() {

@@ -1,4 +1,3 @@
-<!-- بداية الملف index.html -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -141,7 +140,7 @@
 
   <input type="text" id="transactionId" placeholder="رقم التحويل" required />
   <input type="text" id="totalAmount" placeholder="المبلغ الإجمالي" readonly />
-  <p style="color: orange; text-align: center;">قم بالتحويل إلى هذا الرقم: <strong>010216546351</strong></p>
+  <p style="color: orange; text-align: center;">قم بالتحويل إلى هذا الرقم: <strong>01274445091</strong></p>
 
   <button type="submit">إرسال الطلب</button>
 </form>
@@ -202,23 +201,29 @@
       totalAmount: document.getElementById('totalAmount').value.replace(" جنيه", "")
     };
 
-    const res = await fetch("http://localhost:3000/api/order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order)
-    });
+    try {
+      const res = await fetch("http://localhost:3000/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(order)
+      });
 
-    const result = await res.json();
-    if (result.success) {
-      alert("تم إرسال الطلب بنجاح ✅");
-      document.getElementById('orderForm').reset();
-      ucOptions.forEach(o => o.classList.remove('selected'));
-      bundleOptions.forEach(o => o.classList.remove('selected'));
-      selectedUC = null;
-      selectedBundle = null;
-      updateTotal();
-    } else {
-      alert("حدث خطأ، حاول مرة أخرى ❌");
+      const result = await res.json();
+      if (result.success) {
+        alert("تم إرسال الطلب بنجاح ✅");
+        document.getElementById('orderForm').reset();
+        ucOptions.forEach(o => o.classList.remove('selected'));
+        bundleOptions.forEach(o => o.classList.remove('selected'));
+        selectedUC = null;
+        selectedBundle = null;
+        updateTotal();
+      } else {
+        alert("حدث خطأ، حاول مرة أخرى ❌");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("حدث خطأ في الاتصال بالسيرفر");
     }
   });
 
@@ -229,18 +234,24 @@
       message: document.getElementById('contactMessage').value
     };
 
-    const res = await fetch("http://localhost:3000/api/inquiry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(contact)
-    });
+    try {
+      const res = await fetch("http://localhost:3000/api/inquiry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(contact)
+      });
 
-    const result = await res.json();
-    if (result.success) {
-      alert("تم إرسال الاستفسار وسيتم الرد عبر بريدك الإلكتروني.");
-      document.getElementById('contactForm').reset();
-    } else {
-      alert("حدث خطأ أثناء إرسال الاستفسار.");
+      const result = await res.json();
+      if (result.success) {
+        alert("تم إرسال الاستفسار وسيتم الرد عبر بريدك الإلكتروني.");
+        document.getElementById('contactForm').reset();
+      } else {
+        alert("حدث خطأ أثناء إرسال الاستفسار.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("حدث خطأ في الاتصال بالسيرفر");
     }
   });
 </script>
