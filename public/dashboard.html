@@ -50,9 +50,9 @@
       background-color: #9e9e9e;
       color: white;
     }
-    .logout-btn {
-      display: block;
-      margin: 20px auto;
+    .logout-btn, .email-btn {
+      display: inline-block;
+      margin: 20px 10px;
       background-color: orange;
       color: black;
       font-weight: bold;
@@ -65,59 +65,128 @@
       font-weight: bold;
       color: orange;
     }
+    .button-container {
+      text-align: center;
+    }
+    #emailModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #emailFormContainer {
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 500px;
+    }
+    #emailForm input, #emailForm textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      background: #2a2a2a;
+      color: white;
+      border: 1px solid #333;
+    }
+    #emailForm textarea {
+      min-height: 150px;
+    }
+    .form-buttons {
+      display: flex;
+      justify-content: space-between;
+    }
   </style>
 </head>
 <body>
 
   <h2>طلبات الشحن</h2>
-  <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+  <div class="button-container">
+    <button class="email-btn" onclick="showEmailForm()">إرسال بريد</button>
+    <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+  </div>
   <div class="section" id="ordersList"></div>
 
   <h2>الاستفسارات</h2>
   <div class="section" id="inquiriesList"></div>
 
   <script>
-    const API_BASE = "https://store-king-esport-production.up.railway.app/api/admin";
+    const API_BASE = "https://store-king-esport-production-e6f8.up.railway.app/api/admin";
 
+    // دالة محسنة للاتصال بالخادم مع التحقق من الجلسة
     async function fetchWithAuth(url, options = {}) {
       try {
-        const res = await fetch(url, {
+        // التحقق من الجلسة أولاً
+        const check = await fetch(`${API_BASE}/check`, {
+          credentials: 'include'
+        });
+        
+        if (!check.ok) {
+          window.location.href = 'login.html';
+          throw new Error('انتهت الجلسة');
+        }
+
+        // تنفيذ الطلب الأصلي
+        const res = await fetch(`${API_BASE}${url}`, {
           ...options,
-          credentials: "include"
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
         });
 
-        if (res.status === 403) {
-          alert("انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.");
-          window.location.href = "login.html";
-          return null;
+        if (res.status === 401) {
+          window.location.href = 'login.html';
+          return;
         }
 
         if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || "فشل الطلب");
+          const error = await res.json().catch(() => ({}));
+          throw new Error(error.message || 'فشل في الطلب');
         }
 
         return await res.json();
       } catch (error) {
-        console.error(`Error fetching ${url}:`, error);
-        alert("خطأ في الاتصال بالخادم: " + error.message);
-        return null;
+        console.error('Fetch error:', error);
+        throw error;
       }
     }
 
-    async function loadOrders() {
-      const data = await fetchWithAuth(`${API_BASE}/orders`);
-      if (!data) return;
-      
-      if (!Array.isArray(data)) {
-        console.error("البيانات غير صالحة: orders ليست مصفوفة", data);
+    // دالة لتحميل البيانات بالتوازي
+    async function loadData() {
+      try {
+        const [orders, inquiries] = await Promise.all([
+          fetchWithAuth('/orders'),
+          fetchWithAuth('/inquiries')
+        ]);
+        
+        renderOrders(orders);
+        renderInquiries(inquiries);
+      } catch (error) {
+        console.error('Load error:', error);
+        alert("فشل تحميل البيانات: " + error.message);
+      }
+    }
+
+    // عرض الطلبات
+    function renderOrders(orders) {
+      if (!Array.isArray(orders)) {
+        console.error('Invalid orders data:', orders);
         return;
       }
 
       const container = document.getElementById("ordersList");
       container.innerHTML = "";
 
-      data.forEach(order => {
+      orders.forEach(order => {
         const div = document.createElement("div");
         div.className = "card";
         div.innerHTML = `
@@ -136,19 +205,17 @@
       });
     }
 
-    async function loadInquiries() {
-      const data = await fetchWithAuth(`${API_BASE}/inquiries`);
-      if (!data) return;
-      
-      if (!Array.isArray(data)) {
-        console.error("البيانات غير صالحة: inquiries ليست مصفوفة", data);
+    // عرض الاستفسارات
+    function renderInquiries(inquiries) {
+      if (!Array.isArray(inquiries)) {
+        console.error('Invalid inquiries data:', inquiries);
         return;
       }
 
       const container = document.getElementById("inquiriesList");
       container.innerHTML = "";
 
-      data.forEach(inquiry => {
+      inquiries.forEach(inquiry => {
         const div = document.createElement("div");
         div.className = "card";
         div.innerHTML = `
@@ -160,48 +227,111 @@
       });
     }
 
-    async function updateStatus(id, status) {
-      const res = await fetchWithAuth(`${API_BASE}/update-status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status })
+    // عرض نموذج إرسال البريد
+    function showEmailForm() {
+      const modal = document.createElement('div');
+      modal.id = 'emailModal';
+      modal.innerHTML = `
+        <div id="emailFormContainer">
+          <h2 style="text-align:center; margin-bottom:20px;">إرسال بريد</h2>
+          <form id="emailForm">
+            <input type="email" id="emailTo" placeholder="البريد الإلكتروني للمستلم" required>
+            <input type="text" id="emailSubject" placeholder="موضوع الرسالة" required>
+            <textarea id="emailMessage" placeholder="محتوى الرسالة" required></textarea>
+            <div class="form-buttons">
+              <button type="submit" style="background:orange; color:black; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">
+                إرسال
+              </button>
+              <button type="button" onclick="document.getElementById('emailModal').remove()" 
+                      style="background:#f44336; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('emailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          const to = document.getElementById('emailTo').value;
+          const subject = document.getElementById('emailSubject').value;
+          const message = document.getElementById('emailMessage').value;
+
+          const response = await fetchWithAuth('/send-email', {
+            method: 'POST',
+            body: JSON.stringify({ to, subject, message })
+          });
+
+          alert(response.success ? '✅ تم الإرسال بنجاح' : '❌ فشل الإرسال');
+          document.getElementById('emailModal').remove();
+        } catch (error) {
+          alert('⚠️ ' + error.message);
+        }
       });
-      if (res !== null) loadOrders();
     }
 
+    // تحديث حالة الطلب
+    async function updateStatus(id, status) {
+      try {
+        await fetchWithAuth('/update-status', {
+          method: "POST",
+          body: JSON.stringify({ id, status })
+        });
+        loadData();
+      } catch (error) {
+        alert("فشل في تحديث الحالة: " + error.message);
+      }
+    }
+
+    // حذف طلب
     async function deleteOrder(id) {
       if (confirm("هل أنت متأكد من حذف الطلب؟")) {
-        const res = await fetchWithAuth(`${API_BASE}/delete-order`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id })
-        });
-        if (res !== null) loadOrders();
+        try {
+          await fetchWithAuth('/delete-order', {
+            method: "DELETE",
+            body: JSON.stringify({ id })
+          });
+          loadData();
+        } catch (error) {
+          alert("فشل في حذف الطلب: " + error.message);
+        }
       }
     }
 
+    // حذف استفسار
     async function deleteInquiry(id) {
       if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
-        const res = await fetchWithAuth(`${API_BASE}/delete-inquiry`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id })
-        });
-        if (res !== null) loadInquiries();
+        try {
+          await fetchWithAuth('/delete-inquiry', {
+            method: "DELETE",
+            body: JSON.stringify({ id })
+          });
+          loadData();
+        } catch (error) {
+          alert("فشل في حذف الاستفسار: " + error.message);
+        }
       }
     }
 
+    // تسجيل الخروج
     async function logout() {
-      await fetch(`${API_BASE}/logout`, {
-        method: "POST",
-        credentials: "include"
-      });
-      window.location.href = "login.html";
+      try {
+        await fetchWithAuth('/logout', {
+          method: "POST"
+        });
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = "login.html";
+      }
     }
 
     // تحميل البيانات عند فتح الصفحة
-    loadOrders();
-    loadInquiries();
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+    });
   </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const session = require('express-session');
+const session = require('express-session'); // هنا مرة واحدة فقط
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
@@ -14,165 +14,325 @@ const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'database.json');
 let db = { orders: [], inquiries: [], admin: { username: process.env.ADMIN_USER, password: process.env.ADMIN_PASS } };
 
-// تحميل قاعدة البيانات إذا كانت موجودة
 if (fs.existsSync(DB_FILE)) {
   db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 }
 
-// حفظ قاعدة البيانات
 function saveDB() {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+// إعداد CORS
+const allowedOrigins = [
+  'https://store-king-esport-production-e6f8.up.railway.app',
+  'http://localhost:3000'
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 // إعداد الجلسة
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+    domain: process.env.NODE_ENV === 'production' ? '.railway.app' : 'localhost'
+  }
 }));
+// إضافة هذا المسار قبل middleware المصادقة
+app.get('/api/admin/check', (req, res) => {
+  res.json({ 
+    alive: true,
+    session: req.session 
+  });
+});
 
-app.use(bodyParser.json());
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
-
-// Middleware للتحقق من صحة الإدارة
+// تعديل middleware المصادقة
 function adminAuth(req, res, next) {
-  if (req.session.admin) {
+  console.log('Session data:', req.session); // للتتبع
+  if (req.session && req.session.admin) {
     next();
   } else {
-    res.status(403).json({ success: false, message: "غير مصرح بالوصول" });
+    console.error('Access denied for:', req.path);
+    res.status(401).json({  // تغيير من 403 إلى 401
+      success: false, 
+      message: "غير مصرح بالوصول - يرجى تسجيل الدخول"
+    });
   }
 }
 
+
+
 // إعداد البريد الإلكتروني
 const transporter = nodemailer.createTransport({
-  service: process.env.SMTP_SERVICE,
+  service: process.env.SMTP_SERVICE || 'gmail',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: process.env.SMTP_PORT || 587,
+  secure: false,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
-// API Endpoints
+async function sendEmail(to, subject, text) {
+  try {
+    const mailOptions = {
+      from: `"STORE King" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text,
+      html: `<p>${text.replace(/\n/g, '<br>')}</p>`
+    };
 
-// تسجيل الدخول للإدارة
-app.post('/api/admin/login', (req, res) => {
-  const { username, password } = req.body;
-  
-  if (username === db.admin.username && password === db.admin.password) {
-    req.session.admin = true;
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    return false;
+  }
+}
+
+// ========== نقاط النهاية ========== //
+
+// نقطة تسجيل الدخول
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+      req.session.admin = true;
+      // حفظ الجلسة بشكل صريح
+      req.session.save(err => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ success: false, message: "فشل في حفظ الجلسة" });
+        }
+        return res.json({ 
+          success: true,
+          message: "تم تسجيل الدخول بنجاح"
+        });
+      });
+    } else {
+      return res.status(401).json({ 
+        success: false, 
+        message: "بيانات الدخول غير صحيحة" 
+      });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: "حدث خطأ في الخادم" 
+    });
   }
 });
-
-// تسجيل الخروج
 app.post('/api/admin/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
+  req.session.destroy(err => {
+    if (err) {
+      return res.status(500).json({ success: false });
+    }
+    res.clearCookie('connect.sid');
+    res.json({ success: true });
+  });
 });
 
-// الحصول على جميع الطلبات (للإدارة)
+// نقطة التحقق من الجلسة
+app.get('/api/admin/check-session', (req, res) => {
+  if (req.session && req.session.admin) {
+    res.json({ 
+      authenticated: true,
+      session: req.session 
+    });
+  } else {
+    res.status(401).json({ 
+      authenticated: false,
+      message: "غير مصرح بالوصول" 
+    });
+  }
+});
+
 app.get('/api/admin/orders', adminAuth, (req, res) => {
-  res.json(db.orders);
+  try {
+    res.json(db.orders);
+  } catch (error) {
+    res.status(500).json({ success: false, message: "خطأ في جلب الطلبات" });
+  }
 });
 
-// الحصول على جميع الاستفسارات (للإدارة)
 app.get('/api/admin/inquiries', adminAuth, (req, res) => {
-  res.json(db.inquiries);
+  try {
+    res.json(db.inquiries);
+  } catch (error) {
+    res.status(500).json({ success: false, message: "خطأ في جلب الاستفسارات" });
+  }
 });
 
-// تحديث حالة الطلب
 app.post('/api/admin/update-status', adminAuth, (req, res) => {
-  const { id, status } = req.body;
-  const order = db.orders.find(o => o.id === id);
-  
-  if (order) {
-    order.status = status;
+  try {
+    const { id, status } = req.body;
+    const order = db.orders.find(o => o.id === id);
+    
+    if (order) {
+      order.status = status;
+      saveDB();
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false, message: "الطلب غير موجود" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "خطأ في تحديث الحالة" });
+  }
+});
+
+app.delete('/api/admin/delete-order', adminAuth, (req, res) => {
+  try {
+    const { id } = req.body;
+    db.orders = db.orders.filter(o => o.id !== id);
     saveDB();
     res.json({ success: true });
-  } else {
-    res.status(404).json({ success: false, message: "الطلب غير موجود" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "خطأ في حذف الطلب" });
   }
 });
 
-// حذف طلب
-app.delete('/api/admin/delete-order', adminAuth, (req, res) => {
-  const { id } = req.body;
-  db.orders = db.orders.filter(o => o.id !== id);
-  saveDB();
-  res.json({ success: true });
-});
-
-// حذف استفسار
 app.delete('/api/admin/delete-inquiry', adminAuth, (req, res) => {
-  const { id } = req.body;
-  db.inquiries = db.inquiries.filter(i => i.id !== id);
-  saveDB();
-  res.json({ success: true });
+  try {
+    const { id } = req.body;
+    db.inquiries = db.inquiries.filter(i => i.id !== id);
+    saveDB();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "خطأ في حذف الاستفسار" });
+  }
 });
 
-// إضافة طلب جديد
-app.post('/api/order', (req, res) => {
-  const order = {
-    id: Date.now().toString(),
-    date: new Date().toISOString(),
-    status: "قيد المراجعة",
-    ...req.body
-  };
-  
-  db.orders.push(order);
-  saveDB();
-  
-  // إرسال إشعار بالبريد الإلكتروني
-  const mailOptions = {
-    from: process.env.SMTP_USER,
-    to: order.email,
-    subject: 'تم استلام طلبك في STORE King',
-    text: `مرحباً ${order.name},\n\nشكراً لتقديم طلبك. سوف نقوم بمراجعة طلبك والتحويل المالي وسيتم إعلامك عند اكتمال العملية.\n\nتفاصيل الطلب:\nID اللاعب: ${order.playerId}\nالمبلغ: ${order.totalAmount} جنيه\n\nمع تحيات,\nفريق STORE King`
-  };
-  
-  transporter.sendMail(mailOptions, (error) => {
-    if (error) console.error('Error sending email:', error);
-  });
-  
-  res.json({ success: true });
+app.post('/api/admin/send-email', adminAuth, async (req, res) => {
+  try {
+    const { to, subject, message } = req.body;
+    
+    if (!to || !subject || !message) {
+      return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+    }
+
+    const mailOptions = {
+      from: `"STORE King" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text: message,
+      html: `<p>${message.replace(/\n/g, '<br>')}</p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: "تم إرسال البريد بنجاح" });
+  } catch (error) {
+    console.error('Email error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: "فشل إرسال البريد: " + error.message 
+    });
+  }
 });
 
-// إضافة استفسار جديد
-app.post('/api/inquiry', (req, res) => {
-  const inquiry = {
-    id: Date.now().toString(),
-    date: new Date().toISOString(),
-    ...req.body
-  };
-  
-  db.inquiries.push(inquiry);
-  saveDB();
-  
-  // إرسال إشعار بالبريد الإلكتروني
-  const mailOptions = {
-    from: process.env.SMTP_USER,
-    to: inquiry.email,
-    subject: 'تم استلام استفسارك في STORE King',
-    text: `مرحباً,\n\nشكراً لتواصلك معنا. لقد تلقينا استفسارك وسيتم الرد عليك في أقرب وقت ممكن.\n\nرسالتك:\n${inquiry.message}\n\nمع تحيات,\nفريق STORE King`
-  };
-  
-  transporter.sendMail(mailOptions, (error) => {
-    if (error) console.error('Error sending email:', error);
-  });
-  
-  res.json({ success: true });
+app.post('/api/order', async (req, res) => {
+  try {
+    const order = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      status: "قيد المراجعة",
+      ...req.body
+    };
+    
+    db.orders.push(order);
+    saveDB();
+    
+    await sendEmail(
+      order.email,
+      'تم استلام طلبك',
+      `مرحباً ${order.name},\n\nتم استلام طلبك بنجاح وسيتم مراجعته قريباً.\n\nرقم الطلب: ${order.id}`
+    );
+
+    if (process.env.ADMIN_EMAIL) {
+      await sendEmail(
+        process.env.ADMIN_EMAIL,
+        'طلب جديد تم استلامه',
+        `تم استلام طلب جديد من ${order.name}\n\nالمبلغ: ${order.totalAmount} جنيه`
+      );
+    }
+
+    res.json({ success: true, message: "تم استلام الطلب بنجاح" });
+  } catch (error) {
+    console.error('Order error:', error);
+    res.status(500).json({ success: false, message: "خطأ في استقبال الطلب" });
+  }
 });
 
-// خدمة الملفات الثابتة
+app.post('/api/inquiry', async (req, res) => {
+  try {
+    const inquiry = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      ...req.body
+    };
+    
+    db.inquiries.push(inquiry);
+    saveDB();
+    
+    await sendEmail(
+      inquiry.email,
+      'تم استلام استفسارك',
+      `شكراً لتواصلك معنا.\n\nسيتم الرد على استفسارك في أقرب وقت ممكن.\n\nرسالتك:\n${inquiry.message}`
+    );
+
+    if (process.env.ADMIN_EMAIL) {
+      await sendEmail(
+        process.env.ADMIN_EMAIL,
+        'استفسار جديد',
+        `استفسار جديد من ${inquiry.email}\n\nالرسالة:\n${inquiry.message}`
+      );
+    }
+
+    res.json({ success: true, message: "تم استلام الاستفسار بنجاح" });
+  } catch (error) {
+    console.error('Inquiry error:', error);
+    res.status(500).json({ success: false, message: "خطأ في استقبال الاستفسار" });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// تشغيل الخادم
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, message: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

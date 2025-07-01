@@ -174,66 +174,67 @@
     });
   });
 
-  document.getElementById('orderForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!selectedUC && !selectedBundle) {
-      alert("يجب اختيار شدات أو حزمة ازدهار واحدة على الأقل");
-      return;
-    }
-
-    const totalAmount = document.getElementById('totalAmount').value.replace(/[^\d.]/g, "");
-
-    const order = {
-      name: document.getElementById('name').value,
-      playerId: document.getElementById('playerId').value,
-      email: document.getElementById('email').value,
-      ucAmount: selectedUC ? selectedUC.dataset.value : "",
-      bundle: selectedBundle ? selectedBundle.dataset.value : "",
-      transactionId: document.getElementById('transactionId').value,
-      totalAmount
-    };
-
-const res = await fetch("https://your-railway-url/api/order", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(order)
-});
-
-    const result = await res.json();
-    if (result.success) {
-      alert("تم إرسال الطلب بنجاح ✅");
-      document.getElementById('orderForm').reset();
-      ucOptions.forEach(o => o.classList.remove('selected'));
-      bundleOptions.forEach(o => o.classList.remove('selected'));
-      selectedUC = null;
-      selectedBundle = null;
-      updateTotal();
-    } else {
-      alert("حدث خطأ، حاول مرة أخرى ❌");
-    }
-  });
-
-  document.getElementById('contactForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const contact = {
-      email: document.getElementById('contactEmail').value,
-      message: `الاسم: ${document.getElementById('contactName').value}\n${document.getElementById('contactMessage').value}`
-    };
-
-    const res = await fetch("https://store-king-esport-production.up.railway.app/api/inquiry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(contact)
+// إرسال الطلبات
+document.getElementById('orderForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  try {
+    const response = await fetch('https://store-king-esport-production-e6f8.up.railway.app/api/order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: document.getElementById('name').value,
+        playerId: document.getElementById('playerId').value,
+        email: document.getElementById('email').value,
+        ucAmount: selectedUC?.dataset.value || null,
+        bundle: selectedBundle?.dataset.value || null,
+        transactionId: document.getElementById('transactionId').value,
+        totalAmount: document.getElementById('totalAmount').value.replace(' جنيه', '')
+      })
     });
 
-    const result = await res.json();
+    const result = await response.json();
     if (result.success) {
-      alert("تم إرسال الاستفسار وسيتم الرد عبر بريدك الإلكتروني.");
-      document.getElementById('contactForm').reset();
+      alert("✅ " + result.message);
     } else {
-      alert("حدث خطأ أثناء إرسال الاستفسار.");
+      alert("❌ " + (result.message || "فشل في إرسال الطلب"));
     }
-  });
+  } catch (error) {
+    alert("⚠️ حدث خطأ في الاتصال بالخادم");
+    console.error('Error:', error);
+  }
+});
+
+// إرسال الاستفسارات
+document.getElementById('contactForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  try {
+    const response = await fetch('https://store-king-esport-production-e6f8.up.railway.app/api/inquiry', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: document.getElementById('contactName').value,
+        email: document.getElementById('contactEmail').value,
+        message: document.getElementById('contactMessage').value
+      })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      alert("✅ " + result.message);
+    } else {
+      alert("❌ " + (result.message || "فشل في إرسال الاستفسار"));
+    }
+  } catch (error) {
+    alert("⚠️ حدث خطأ في الاتصال بالخادم");
+    console.error('Error:', error);
+  }
+});
 </script>
 </body>
 </html>
