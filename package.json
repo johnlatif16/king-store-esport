@@ -1,35 +1,20 @@
 {
-  "name": "uc",
+  "name": "store-king-esport",
   "version": "1.0.0",
-  "description": "UC Store for PUBG",
+  "description": "Backend for STORE King ESPORTS",
   "main": "server.js",
-  "type": "commonjs",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/johnlatif2026/UCPUBG.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/johnlatif2026/UCPUBG/issues"
-  },
-  "homepage": "https://github.com/johnlatif2026/UCPUBG#readme",
   "dependencies": {
     "body-parser": "^1.20.2",
-    "connect-sqlite3": "^0.9.16",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "nodemailer": "^6.9.5",
-    "sqlite3": "^5.1.7"
+    "nodemailer": "^6.9.8"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
+  "engines": {
+    "node": "18.x"
   }
 }

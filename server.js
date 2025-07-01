@@ -3,40 +3,51 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const nodemailer = require('nodemailer');
+const fs = require('fs');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// تهيئة قاعدة البيانات
+const DB_FILE = path.join(__dirname, 'database.json');
+let db = { orders: [], inquiries: [], admin: { username: process.env.ADMIN_USER, password: process.env.ADMIN_PASS } };
+
+// تحميل قاعدة البيانات إذا كانت موجودة
+if (fs.existsSync(DB_FILE)) {
+  db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+}
+
+// حفظ قاعدة البيانات
+function saveDB() {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
+
+// إعداد الجلسة
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+app.use(bodyParser.json());
 app.use(cors({
   origin: true,
   credentials: true
 }));
-app.use(cookieParser());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Session Configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: true,
-  cookie: { 
-    secure: false, // Set to true if using HTTPS
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+// Middleware للتحقق من صحة الإدارة
+function adminAuth(req, res, next) {
+  if (req.session.admin) {
+    next();
+  } else {
+    res.status(403).json({ success: false, message: "غير مصرح بالوصول" });
   }
-}));
+}
 
-// Fake Database (Replace with a real database like MongoDB)
-let orders = [];
-let inquiries = [];
-
-// Email Transporter
+// إعداد البريد الإلكتروني
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_SERVICE,
   auth: {
@@ -45,152 +56,123 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Serve HTML Files
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// API Endpoints
 
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.redirect('/login');
-  }
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// API Routes
-
-// Admin Login
+// تسجيل الدخول للإدارة
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   
-  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-    req.session.isAdmin = true;
-    return res.json({ success: true });
+  if (username === db.admin.username && password === db.admin.password) {
+    req.session.admin = true;
+    res.json({ success: true });
   } else {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    res.status(401).json({ success: false, message: "بيانات الدخول غير صحيحة" });
   }
 });
 
-// Admin Logout
+// تسجيل الخروج
 app.post('/api/admin/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).json({ success: false });
-    }
-    res.clearCookie('connect.sid');
-    return res.json({ success: true });
-  });
+  req.session.destroy();
+  res.json({ success: true });
 });
 
-// Create New Order
-app.post('/api/order', (req, res) => {
-  const order = req.body;
-  order.id = Date.now();
-  order.status = 'لم يتم الدفع';
-  order.createdAt = new Date();
-  orders.push(order);
-  
-  // Send email notification
-  const mailOptions = {
-    from: process.env.SMTP_USER,
-    to: process.env.SMTP_USER,
-    subject: 'New Order Received',
-    text: `New order from ${order.name} (${order.email}) for ${order.ucAmount || order.bundle}`
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Email error:', error);
-    }
-  });
-
-  res.json({ success: true, order });
+// الحصول على جميع الطلبات (للإدارة)
+app.get('/api/admin/orders', adminAuth, (req, res) => {
+  res.json(db.orders);
 });
 
-// Get All Orders (Admin)
-app.get('/api/admin/orders', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
-  }
-  res.json(orders);
+// الحصول على جميع الاستفسارات (للإدارة)
+app.get('/api/admin/inquiries', adminAuth, (req, res) => {
+  res.json(db.inquiries);
 });
 
-// Update Order Status
-app.post('/api/admin/update-status', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
-  }
-
+// تحديث حالة الطلب
+app.post('/api/admin/update-status', adminAuth, (req, res) => {
   const { id, status } = req.body;
-  const orderIndex = orders.findIndex(o => o.id == id);
-
-  if (orderIndex !== -1) {
-    orders[orderIndex].status = status;
-    return res.json({ success: true });
+  const order = db.orders.find(o => o.id === id);
+  
+  if (order) {
+    order.status = status;
+    saveDB();
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ success: false, message: "الطلب غير موجود" });
   }
-
-  return res.status(404).json({ success: false });
 });
 
-// Delete Order
-app.delete('/api/admin/delete-order', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
-  }
-
+// حذف طلب
+app.delete('/api/admin/delete-order', adminAuth, (req, res) => {
   const { id } = req.body;
-  orders = orders.filter(o => o.id != id);
+  db.orders = db.orders.filter(o => o.id !== id);
+  saveDB();
   res.json({ success: true });
 });
 
-// Create Inquiry
-app.post('/api/inquiry', (req, res) => {
-  const inquiry = req.body;
-  inquiry.id = Date.now();
-  inquiry.createdAt = new Date();
-  inquiries.push(inquiry);
+// حذف استفسار
+app.delete('/api/admin/delete-inquiry', adminAuth, (req, res) => {
+  const { id } = req.body;
+  db.inquiries = db.inquiries.filter(i => i.id !== id);
+  saveDB();
+  res.json({ success: true });
+});
 
-  // Send email notification
+// إضافة طلب جديد
+app.post('/api/order', (req, res) => {
+  const order = {
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+    status: "قيد المراجعة",
+    ...req.body
+  };
+  
+  db.orders.push(order);
+  saveDB();
+  
+  // إرسال إشعار بالبريد الإلكتروني
   const mailOptions = {
     from: process.env.SMTP_USER,
-    to: process.env.SMTP_USER,
-    subject: 'New Inquiry Received',
-    text: `New inquiry from ${inquiry.email}:\n${inquiry.message}`
+    to: order.email,
+    subject: 'تم استلام طلبك في STORE King',
+    text: `مرحباً ${order.name},\n\nشكراً لتقديم طلبك. سوف نقوم بمراجعة طلبك والتحويل المالي وسيتم إعلامك عند اكتمال العملية.\n\nتفاصيل الطلب:\nID اللاعب: ${order.playerId}\nالمبلغ: ${order.totalAmount} جنيه\n\nمع تحيات,\nفريق STORE King`
   };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Email error:', error);
-    }
+  
+  transporter.sendMail(mailOptions, (error) => {
+    if (error) console.error('Error sending email:', error);
   });
-
+  
   res.json({ success: true });
 });
 
-// Get All Inquiries (Admin)
-app.get('/api/admin/inquiries', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
-  }
-  res.json(inquiries);
-});
-
-// Delete Inquiry
-app.delete('/api/admin/delete-inquiry', (req, res) => {
-  if (!req.session.isAdmin) {
-    return res.status(403).json({ success: false, message: 'Unauthorized' });
-  }
-
-  const { id } = req.body;
-  inquiries = inquiries.filter(i => i.id != id);
+// إضافة استفسار جديد
+app.post('/api/inquiry', (req, res) => {
+  const inquiry = {
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+    ...req.body
+  };
+  
+  db.inquiries.push(inquiry);
+  saveDB();
+  
+  // إرسال إشعار بالبريد الإلكتروني
+  const mailOptions = {
+    from: process.env.SMTP_USER,
+    to: inquiry.email,
+    subject: 'تم استلام استفسارك في STORE King',
+    text: `مرحباً,\n\nشكراً لتواصلك معنا. لقد تلقينا استفسارك وسيتم الرد عليك في أقرب وقت ممكن.\n\nرسالتك:\n${inquiry.message}\n\nمع تحيات,\nفريق STORE King`
+  };
+  
+  transporter.sendMail(mailOptions, (error) => {
+    if (error) console.error('Error sending email:', error);
+  });
+  
   res.json({ success: true });
 });
 
-// Start Server
+// خدمة الملفات الثابتة
+app.use(express.static(path.join(__dirname, 'public')));
+
+// تشغيل الخادم
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
