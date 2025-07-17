@@ -1,299 +1,1185 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>لوحة التحكم - شدات ببجي</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body {
-      margin: 0;
-      font-family: 'Cairo', sans-serif;
-      background-color: #121212;
-      color: #fff;
-      padding: 20px;
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3f37c9;
+      --accent-color: #4cc9f0;
+      --dark-color: #1a1a2e;
+      --darker-color: #16213e;
+      --light-color: #f8f9fa;
+      --success-color: #4caf50;
+      --warning-color: #ff9800;
+      --danger-color: #f44336;
+      --info-color: #2196f3;
+      --border-radius: 12px;
+      --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      --transition: all 0.3s ease;
     }
 
-    h2 {
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
+    }
+
+    .admin-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* الشريط الجانبي */
+    .sidebar {
+      width: 280px;
+      background: linear-gradient(135deg, var(--dark-color), var(--darker-color));
+      color: white;
+      padding: 20px 0;
+      box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
+      position: fixed;
+      height: 100%;
+      z-index: 100;
+      transition: var(--transition);
+    }
+
+    .sidebar-header {
+      text-align: center;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .sidebar-header h2 {
+      color: white;
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+    }
+
+    .sidebar-header p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 0 15px;
+    }
+
+    .nav-item {
+      margin-bottom: 5px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 15px;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      border-radius: var(--border-radius);
+      transition: var(--transition);
+    }
+
+    .nav-link:hover, .nav-link.active {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      transform: translateX(5px);
+    }
+
+    .nav-link i {
+      margin-left: 10px;
+      font-size: 1.1rem;
+      width: 24px;
       text-align: center;
     }
 
-    #ordersList, #inquiriesList {
-      max-width: 900px;
-      margin: 20px auto;
-    }
-
-    .order, .inquiry {
-      background: #1e1e1e;
-      padding: 15px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      border: 1px solid #333;
-    }
-
-    .order p, .inquiry p {
-      margin: 5px 0;
-    }
-
-    .order button, .inquiry button {
-      margin: 5px 5px 0 0;
-      padding: 8px 15px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .paid {
-      background-color: #4caf50;
-      color: white;
-    }
-
-    .not-paid {
-      background-color: #f44336;
-      color: white;
-    }
-
-    .delete-btn {
-      background-color: #9e9e9e;
-      color: white;
-    }
-
-    .reply-btn {
-      background-color: #2196F3;
-      color: white;
-    }
-
     .logout-btn {
-      display: block;
-      margin: auto;
-      background-color: orange;
-      color: black;
-      font-weight: bold;
-      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      width: calc(100% - 30px);
+      margin: 20px 15px 0;
+      padding: 12px 15px;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.8);
       border: none;
-      border-radius: 5px;
+      border-radius: var(--border-radius);
       cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Tajawal', sans-serif;
+      font-size: 0.95rem;
     }
 
-    .status {
-      font-weight: bold;
-      color: orange;
+    .logout-btn:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
     }
 
-    .reply-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.7);
-      z-index: 1000;
-      justify-content: center;
+    .logout-btn i {
+      margin-left: 10px;
+    }
+
+    /* المحتوى الرئيسي */
+    .main-content {
+      flex: 1;
+      margin-right: 280px;
+      padding: 30px;
+      background-color: #f5f7fa;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .header h1 {
+      color: var(--dark-color);
+      font-size: 1.8rem;
+    }
+
+    .user-info {
+      display: flex;
       align-items: center;
     }
 
-    .reply-content {
-      background: #1e1e1e;
+    .user-info img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-left: 10px;
+      object-fit: cover;
+    }
+
+    .user-name {
+      font-weight: 500;
+    }
+
+    /* بطاقات الإحصائيات */
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: var(--border-radius);
       padding: 20px;
-      border-radius: 8px;
-      width: 80%;
-      max-width: 500px;
+      box-shadow: var(--box-shadow);
+      transition: var(--transition);
+      border-top: 4px solid var(--primary-color);
     }
 
-    .reply-content h3 {
-      margin-top: 0;
-      color: orange;
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
     }
 
-    .reply-content textarea {
-      width: 100%;
-      min-height: 150px;
-      margin: 10px 0;
-      padding: 10px;
-      background: #2a2a2a;
-      color: white;
-      border: 1px solid #444;
-      border-radius: 5px;
+    .stat-card.orders {
+      border-top-color: var(--info-color);
     }
 
-    .reply-buttons {
+    .stat-card.inquiries {
+      border-top-color: var(--warning-color);
+    }
+
+    .stat-card.suggestions {
+      border-top-color: var(--success-color);
+    }
+
+    .stat-card h3 {
+      font-size: 1rem;
+      color: #666;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    .stat-card h3 i {
+      margin-left: 8px;
+      font-size: 1.2rem;
+    }
+
+    .stat-card .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--dark-color);
+      margin-bottom: 5px;
+    }
+
+    .stat-card .change {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .stat-card .change.positive {
+      color: var(--success-color);
+    }
+
+    .stat-card .change.negative {
+      color: var(--danger-color);
+    }
+
+    /* الأقسام الرئيسية */
+    .section {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: var(--box-shadow);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .section-header h2 {
+      color: var(--dark-color);
+      font-size: 1.4rem;
+    }
+
+    .section-header .actions {
       display: flex;
       gap: 10px;
     }
 
-    .tab-container {
-      display: flex;
-      justify-content: center;
-      margin: 20px 0;
-    }
-    
-    .tab-btn {
-      padding: 10px 20px;
-      background: #333;
-      color: white;
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
       border: none;
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 500;
       cursor: pointer;
-      font-weight: bold;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    
-    .tab-btn.active {
-      background: orange;
-      color: black;
+
+    .btn i {
+      margin-left: 6px;
     }
-    
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--secondary-color);
+    }
+
+    .btn-success {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #3d8b40;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+
+    .btn-warning {
+      background-color: var(--warning-color);
+      color: white;
+    }
+
+    .btn-warning:hover {
+      background-color: #e68a00;
+    }
+
+    .btn-info {
+      background-color: var(--info-color);
+      color: white;
+    }
+
+    .btn-info:hover {
+      background-color: #0b7dda;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid #ddd;
+      color: #666;
+    }
+
+    .btn-outline:hover {
+      background-color: #f5f5f5;
+    }
+
+    /* جدول البيانات */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .data-table th {
+      background-color: #f8f9fa;
+      color: #555;
+      font-weight: 600;
+      text-align: right;
+      padding: 12px 15px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .data-table td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+      color: #555;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background-color: #f9f9f9;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-success {
+      background-color: #e8f5e9;
+      color: var(--success-color);
+    }
+
+    .badge-warning {
+      background-color: #fff8e1;
+      color: var(--warning-color);
+    }
+
+    .badge-danger {
+      background-color: #ffebee;
+      color: var(--danger-color);
+    }
+
+    .badge-info {
+      background-color: #e3f2fd;
+      color: var(--info-color);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-left: 6px;
+    }
+
+    .status-paid .status-indicator {
+      background-color: var(--success-color);
+    }
+
+    .status-pending .status-indicator {
+      background-color: var(--warning-color);
+    }
+
+    .status-replied .status-indicator {
+      background-color: var(--info-color);
+    }
+
+    /* النماذج */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: 'Tajawal', sans-serif;
+      transition: var(--transition);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+
+    textarea.form-control {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    /* المودال */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: var(--border-radius);
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal.show .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: var(--dark-color);
+    }
+
+    .modal-header .close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* معاينة الصورة */
+    .screenshot-preview {
+      max-width: 100px;
+      max-height: 100px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 1px solid #ddd;
+    }
+
+    .screenshot-preview:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .image-modal {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 1100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .image-modal.show {
+      display: flex;
+    }
+
+    .image-modal-content {
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    .image-modal-content img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* التبويبات */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: var(--transition);
+      font-weight: 500;
+      color: #666;
+    }
+
+    .tab:hover {
+      color: var(--primary-color);
+    }
+
+    .tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+
     .tab-content {
       display: none;
     }
-    
+
     .tab-content.active {
       display: block;
     }
-    
-    .inquiry.replied {
-      opacity: 0.7;
-      border-left: 4px solid #4CAF50;
+
+    /* رسائل الاستجابة */
+    .alert {
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+    }
+
+    .alert i {
+      margin-left: 10px;
+      font-size: 1.2rem;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: var(--success-color);
+      border: 1px solid #c8e6c9;
+    }
+
+    .alert-danger {
+      background-color: #ffebee;
+      color: var(--danger-color);
+      border: 1px solid #ffcdd2;
+    }
+
+    .alert-info {
+      background-color: #e3f2fd;
+      color: var(--info-color);
+      border: 1px solid #bbdefb;
+    }
+
+    /* التكيف مع الشاشات الصغيرة */
+    @media (max-width: 992px) {
+      .sidebar {
+        width: 250px;
+        transform: translateX(-250px);
+      }
+      
+      .sidebar.show {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-right: 0;
+      }
+      
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .stats-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .user-info {
+        margin-top: 15px;
+      }
     }
   </style>
 </head>
 <body>
-  <h2>لوحة التحكم</h2>
-  <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-
-  <div class="tab-container">
-    <button class="tab-btn active" onclick="openTab('ordersTab')">طلبات الشحن</button>
-    <button class="tab-btn" onclick="openTab('inquiriesTab')">الاستفسارات</button>
-    <button class="tab-btn" onclick="openTab('messagesTab')">إرسال رسائل</button>
-  </div>
-
-  <div id="ordersTab" class="tab-content active">
-    <div id="ordersList"></div>
-  </div>
-
-  <div id="inquiriesTab" class="tab-content">
-    <div id="inquiriesList"></div>
-  </div>
-
-  <div id="messagesTab" class="tab-content">
-    <div class="email-form" style="max-width: 900px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 8px;">
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; color: #ffa726;">البريد الإلكتروني:</label>
-        <input type="email" id="clientEmail" style="width: 100%; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;">
+  <div class="admin-container">
+    <!-- الشريط الجانبي -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>لوحة التحكم</h2>
+        <p>إدارة شدات ببجي</p>
       </div>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; color: #ffa726;">عنوان الرسالة:</label>
-        <input type="text" id="emailSubject" style="width: 100%; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;">
+      
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="#" class="nav-link active" onclick="openTab('ordersTab')">
+            <i class="fas fa-shopping-cart"></i>
+            الطلبات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('inquiriesTab')">
+            <i class="fas fa-question-circle"></i>
+            الاستفسارات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('suggestionsTab')">
+            <i class="fas fa-lightbulb"></i>
+            الاقتراحات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('messagesTab')">
+            <i class="fas fa-envelope"></i>
+            الرسائل المباشرة
+          </a>
+        </li>
+      </ul>
+      
+      <button class="logout-btn" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        تسجيل الخروج
+      </button>
+    </div>
+    
+    <!-- المحتوى الرئيسي -->
+    <div class="main-content">
+      <div class="header">
+        <h1>مرحبًا بك في لوحة التحكم</h1>
+        <div class="user-info">
+        </div>
       </div>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; color: #ffa726;">نص الرسالة:</label>
-        <textarea id="emailMessage" style="width: 100%; min-height: 150px; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 5px;"></textarea>
+      
+      <!-- بطاقات الإحصائيات -->
+      <div class="stats-cards">
+        <div class="stat-card orders">
+          <h3><i class="fas fa-shopping-cart"></i> الطلبات</h3>
+          <div class="value" id="ordersCount">0</div>
+          <div class="change positive"><i class="fas fa-arrow-up"></i> 12% عن الشهر الماضي</div>
+        </div>
+        
+        <div class="stat-card inquiries">
+          <h3><i class="fas fa-question-circle"></i> الاستفسارات</h3>
+          <div class="value" id="inquiriesCount">0</div>
+          <div class="change negative"><i class="fas fa-arrow-down"></i> 5% عن الشهر الماضي</div>
+        </div>
+        
+        <div class="stat-card suggestions">
+          <h3><i class="fas fa-lightbulb"></i> الاقتراحات</h3>
+          <div class="value" id="suggestionsCount">0</div>
+          <div class="change positive"><i class="fas fa-arrow-up"></i> 8% عن الشهر الماضي</div>
+        </div>
       </div>
-      <button class="paid" onclick="sendDirectMessage()" style="padding: 10px 20px;">إرسال الرسالة</button>
+      
+      <!-- قسم الطلبات -->
+      <div id="ordersTab" class="section tab-content active">
+        <div class="section-header">
+          <h2><i class="fas fa-shopping-cart"></i> إدارة الطلبات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+            <button class="btn btn-outline">
+              <i class="fas fa-download"></i> تصدير
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>العميل</th>
+                <th>ID اللاعب</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>الحالة</th>
+                <th>إثبات الدفع</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="ordersList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الاستفسارات -->
+      <div id="inquiriesTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-question-circle"></i> إدارة الاستفسارات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>البريد الإلكتروني</th>
+                <th>التاريخ</th>
+                <th>الرسالة</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="inquiriesList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الاقتراحات -->
+      <div id="suggestionsTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-lightbulb"></i> إدارة الاقتراحات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>طريقة التواصل</th>
+                <th>التاريخ</th>
+                <th>الاقتراح</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="suggestionsList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الرسائل المباشرة -->
+      <div id="messagesTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-envelope"></i> إرسال رسالة مباشرة</h2>
+        </div>
+        
+        <div class="message-form">
+          <div class="form-group">
+            <label for="clientEmail">بريد العميل:</label>
+            <input type="email" id="clientEmail" class="form-control" placeholder="أدخل البريد الإلكتروني للعميل">
+          </div>
+          <div class="form-group">
+            <label for="emailSubject">عنوان الرسالة:</label>
+            <input type="text" id="emailSubject" class="form-control" placeholder="أدخل عنوان الرسالة">
+          </div>
+          <div class="form-group">
+            <label for="emailMessage">نص الرسالة:</label>
+            <textarea id="emailMessage" class="form-control" placeholder="اكتب محتوى الرسالة هنا..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="sendDirectMessage()">
+            <i class="fas fa-paper-plane"></i> إرسال الرسالة
+          </button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <div id="replyModal" class="reply-modal">
-    <div class="reply-content">
-      <h3>رد على الاستفسار</h3>
-      <p id="originalMessage"></p>
-      <textarea id="replyText" placeholder="اكتب ردك هنا..."></textarea>
-      <div class="reply-buttons">
-        <button class="paid" onclick="sendReply()">إرسال الرد</button>
-        <button class="delete-btn" onclick="closeReplyModal()">إلغاء</button>
+  
+  <!-- مودال الرد -->
+  <div id="replyModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>رد على الاستفسار</h3>
+        <button class="close" onclick="closeReplyModal()">&times;</button>
       </div>
+      <div class="modal-body">
+        <div id="originalMessage" class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          الرسالة الأصلية من العميل
+        </div>
+        <div class="form-group">
+          <label for="replyText">الرد:</label>
+          <textarea id="replyText" class="form-control" placeholder="اكتب ردك هنا..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeReplyModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="sendReply()">إرسال الرد</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- مودال معاينة الصورة -->
+  <div id="imageModal" class="image-modal">
+    <div class="image-modal-content">
+      <img id="modalImage" src="" alt="معاينة الصورة">
     </div>
   </div>
 
   <script>
+    // بيانات التطبيق
     let currentInquiryId = null;
     let currentInquiryEmail = null;
     let currentInquiryMessage = null;
+    let orders = [];
+    let inquiries = [];
+    let suggestions = [];
 
+    // تحميل البيانات عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+      loadOrders();
+      loadInquiries();
+      loadSuggestions();
+    });
+
+    // وظائف التبويب
+    function openTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    // تحميل الطلبات
     async function loadOrders() {
-      const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/orders", {
-        credentials: "include"
-      });
-      const orders = await res.json();
-      const container = document.getElementById("ordersList");
-      container.innerHTML = "";
-
-      orders.forEach(order => {
-        const div = document.createElement("div");
-        div.classList.add("order");
-        div.innerHTML = `
-          <p><strong>الاسم:</strong> ${order.name}</p>
-          <p><strong>ID اللاعب:</strong> ${order.playerId}</p>
-          <p><strong>البريد:</strong> ${order.email}</p>
-          <p><strong>النوع:</strong> ${order.type}</p>
-          <p><strong>الكمية:</strong> ${order.ucAmount || order.bundle}</p>
-          <p><strong>المبلغ:</strong> ${order.totalAmount}</p>
-          <p><strong>رقم التحويل:</strong> ${order.transactionId}</p>
-          <p class="status"><strong>الحالة:</strong> ${order.status}</p>
-          <button class="${order.status === 'تم الدفع' ? 'paid' : 'not-paid'}" 
-                  onclick="updateStatus(${order.id}, '${order.status === 'تم الدفع' ? 'لم يتم الدفع' : 'تم الدفع'}')">
-            ${order.status === 'تم الدفع' ? 'تم الدفع' : 'لم يتم الدفع'}
-          </button>
-          <button class="delete-btn" onclick="deleteOrder(${order.id})">حذف</button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    async function loadInquiries() {
-      const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/inquiries", {
-        credentials: "include"
-      });
-      const inquiries = await res.json();
-      const container = document.getElementById("inquiriesList");
-      container.innerHTML = "";
-
-      inquiries.forEach(inquiry => {
-        const div = document.createElement("div");
-        div.classList.add("inquiry");
-        if (inquiry.status === 'تم الرد') {
-          div.classList.add("replied");
-        }
+      try {
+        showLoader('#ordersList');
         
-        div.innerHTML = `
-          <p><strong>البريد:</strong> ${inquiry.email}</p>
-          <p><strong>التاريخ:</strong> ${new Date(inquiry.created_at).toLocaleString()}</p>
-          <p><strong>الرسالة:</strong> ${inquiry.message}</p>
-          <button class="reply-btn" onclick="openReplyModal(${inquiry.id}, '${inquiry.email.replace(/'/g, "\\'")}', '${inquiry.message.replace(/'/g, "\\'").replace(/\n/g, '<br>')}')">
-            ${inquiry.status === 'تم الرد' ? '✉️ إعادة رد' : '✉️ رد'}
-          </button>
-          <button class="delete-btn" onclick="deleteInquiry(${inquiry.id})">🗑️ حذف</button>
-        `;
-        container.appendChild(div);
-      });
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/orders", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الطلبات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الطلبات');
+        
+        orders = data.data || [];
+        document.getElementById('ordersCount').textContent = orders.length;
+        
+        const container = document.getElementById("ordersList");
+        container.innerHTML = "";
+
+        if (!Array.isArray(orders)) {
+          throw new Error('بيانات الطلبات غير صالحة');
+        }
+
+        if (orders.length === 0) {
+          container.innerHTML = `<tr><td colspan="7" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
+          return;
+        }
+
+        orders.forEach(order => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>
+              <strong>${order.name}</strong><br>
+              <small>${order.email}</small>
+            </td>
+            <td>${order.playerId}</td>
+            <td>${order.type}<br><small>${order.ucAmount || order.bundle}</small></td>
+            <td>${order.totalAmount}<br><small>${order.transactionId}</small></td>
+            <td>
+              <span class="status ${order.status === 'تم الدفع' ? 'status-paid' : 'status-pending'}">
+                ${order.status}
+                <span class="status-indicator"></span>
+              </span>
+            </td>
+            <td>
+              ${order.screenshot ? `
+                <img src="${order.screenshot}" 
+                     onclick="openImageModal('${order.screenshot}')"
+                     class="screenshot-preview">
+              ` : 'لا يوجد'}
+            </td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm ${order.status === 'تم الدفع' ? 'btn-warning' : 'btn-success'}" 
+                        onclick="updateStatus(${order.id}, '${order.status === 'تم الدفع' ? 'لم يتم الدفع' : 'تم الدفع'}')">
+                  <i class="fas ${order.status === 'تم الدفع' ? 'fa-times' : 'fa-check'}"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteOrder(${order.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading orders:", error);
+        showError('#ordersList', "حدث خطأ أثناء تحميل الطلبات: " + error.message);
+      }
     }
 
+    // معاينة الصورة
+    function openImageModal(src) {
+      document.getElementById('modalImage').src = src;
+      document.getElementById('imageModal').classList.add('show');
+    }
+
+    // إغلاق معاينة الصورة
+    document.getElementById('imageModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.remove('show');
+      }
+    });
+
+    // تحميل الاستفسارات
+    async function loadInquiries() {
+      try {
+        showLoader('#inquiriesList');
+        
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/inquiries", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الاستفسارات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الاستفسارات');
+        
+        inquiries = data.data || [];
+        document.getElementById('inquiriesCount').textContent = inquiries.length;
+        
+        const container = document.getElementById("inquiriesList");
+        container.innerHTML = "";
+
+        if (!Array.isArray(inquiries)) {
+          throw new Error('بيانات الاستفسارات غير صالحة');
+        }
+
+        if (inquiries.length === 0) {
+          container.innerHTML = `<tr><td colspan="5" style="text-align: center;">لا توجد استفسارات لعرضها</td></tr>`;
+          return;
+        }
+
+        inquiries.forEach(inquiry => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${inquiry.email}</td>
+            <td>${new Date(inquiry.created_at).toLocaleString()}</td>
+            <td>${inquiry.message.length > 50 ? inquiry.message.substring(0, 50) + '...' : inquiry.message}</td>
+            <td>
+              <span class="badge ${inquiry.status === 'تم الرد' ? 'badge-success' : 'badge-warning'}">
+                ${inquiry.status}
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-info" 
+                        onclick="openReplyModal(${inquiry.id}, '${inquiry.email.replace(/'/g, "\\'")}', '${inquiry.message.replace(/'/g, "\\'")}')">
+                  <i class="fas fa-reply"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteInquiry(${inquiry.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading inquiries:", error);
+        showError('#inquiriesList', "حدث خطأ أثناء تحميل الاستفسارات: " + error.message);
+      }
+    }
+
+    // تحميل الاقتراحات
+    async function loadSuggestions() {
+      try {
+        showLoader('#suggestionsList');
+        
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/suggestions", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الاقتراحات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الاقتراحات');
+        
+        suggestions = data.data || [];
+        document.getElementById('suggestionsCount').textContent = suggestions.length;
+        
+        const container = document.getElementById("suggestionsList");
+        container.innerHTML = "";
+
+        if (!Array.isArray(suggestions)) {
+          throw new Error('بيانات الاقتراحات غير صالحة');
+        }
+
+        if (suggestions.length === 0) {
+          container.innerHTML = `<tr><td colspan="5" style="text-align: center;">لا توجد اقتراحات لعرضها</td></tr>`;
+          return;
+        }
+
+        suggestions.forEach(suggestion => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${suggestion.name}</td>
+            <td>${suggestion.contact}</td>
+            <td>${new Date(suggestion.created_at).toLocaleString()}</td>
+            <td>${suggestion.message.length > 50 ? suggestion.message.substring(0, 50) + '...' : suggestion.message}</td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-primary" 
+                        onclick="contactSuggestion('${suggestion.contact.replace(/'/g, "\\'")}')">
+                  <i class="fas fa-envelope"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteSuggestion(${suggestion.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading suggestions:", error);
+        showError('#suggestionsList', "حدث خطأ أثناء تحميل الاقتراحات: " + error.message);
+      }
+    }
+
+    // التواصل مع صاحب الاقتراح
+    function contactSuggestion(contact) {
+      document.getElementById('clientEmail').value = contact.includes('@') ? contact : '';
+      document.getElementById('emailSubject').value = "رد على اقتراحك";
+      openTab('messagesTab');
+      document.getElementById('emailMessage').focus();
+    }
+
+    // حذف الاقتراح
+    async function deleteSuggestion(id) {
+      if (confirm("هل أنت متأكد من حذف هذا الاقتراح؟")) {
+        try {
+          const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/delete-suggestion", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الاقتراح');
+          
+          showAlert('success', 'تم حذف الاقتراح بنجاح');
+          loadSuggestions();
+        } catch (error) {
+          console.error("Error deleting suggestion:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الاقتراح: " + error.message);
+        }
+      }
+    }
+
+    // فتح مودال الرد
     function openReplyModal(id, email, message) {
       currentInquiryId = id;
       currentInquiryEmail = email;
       currentInquiryMessage = message;
       
       document.getElementById("originalMessage").innerHTML = `
+        <i class="fas fa-info-circle"></i>
         <strong>الرسالة الأصلية من ${email}:</strong><br>
         ${message}
       `;
       document.getElementById("replyText").value = "";
-      document.getElementById("replyModal").style.display = "flex";
+      document.getElementById("replyModal").classList.add('show');
     }
 
+    // إغلاق مودال الرد
     function closeReplyModal() {
-      document.getElementById("replyModal").style.display = "none";
+      document.getElementById("replyModal").classList.remove('show');
     }
 
+    // إرسال الرد
     async function sendReply() {
       const replyText = document.getElementById("replyText").value.trim();
       if (!replyText) {
-        alert("يرجى كتابة رد");
+        showAlert('warning', 'يرجى كتابة رد');
         return;
       }
 
       try {
-        const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/reply-inquiry", {
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/reply-inquiry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -307,25 +1193,26 @@
 
         const result = await res.json();
         if (result.success) {
-          alert("تم إرسال الرد بنجاح");
+          showAlert('success', 'تم إرسال الرد بنجاح');
           closeReplyModal();
           loadInquiries();
         } else {
-          alert("حدث خطأ: " + (result.message || "فشل إرسال الرد"));
+          throw new Error(result.message || "فشل إرسال الرد");
         }
       } catch (error) {
         console.error("Error:", error);
-        alert("حدث خطأ أثناء محاولة الإرسال");
+        showAlert('danger', "حدث خطأ أثناء محاولة الإرسال: " + error.message);
       }
     }
 
+    // إرسال رسالة مباشرة
     async function sendDirectMessage() {
       const email = document.getElementById("clientEmail").value.trim();
       const subject = document.getElementById("emailSubject").value.trim();
       const message = document.getElementById("emailMessage").value.trim();
 
       if (!email || !subject || !message) {
-        alert("يرجى ملء جميع الحقول");
+        showAlert('warning', 'يرجى ملء جميع الحقول');
         return;
       }
 
@@ -334,7 +1221,7 @@
       }
 
       try {
-        const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/send-message", {
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/send-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -343,77 +1230,150 @@
 
         const result = await res.json();
         if (result.success) {
-          alert("تم إرسال الرسالة بنجاح");
+          showAlert('success', 'تم إرسال الرسالة بنجاح');
           document.getElementById("clientEmail").value = "";
           document.getElementById("emailSubject").value = "";
           document.getElementById("emailMessage").value = "";
         } else {
-          alert("حدث خطأ: " + (result.message || "فشل إرسال الرسالة"));
+          throw new Error(result.message || "فشل إرسال الرسالة");
         }
       } catch (error) {
         console.error("Error:", error);
-        alert("حدث خطأ أثناء محاولة الإرسال");
+        showAlert('danger', "حدث خطأ أثناء محاولة الإرسال: " + error.message);
       }
     }
 
+    // تحديث حالة الطلب
     async function updateStatus(id, status) {
-      await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id, status })
-      });
-      loadOrders();
+      try {
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/update-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ id, status })
+        });
+        
+        if (!res.ok) throw new Error('فشل في تحديث الحالة');
+        
+        showAlert('success', 'تم تحديث حالة الطلب بنجاح');
+        loadOrders();
+      } catch (error) {
+        console.error("Error updating status:", error);
+        showAlert('danger', "حدث خطأ أثناء تحديث الحالة: " + error.message);
+      }
     }
 
+    // حذف الطلب
     async function deleteOrder(id) {
       if (confirm("هل أنت متأكد من حذف الطلب؟")) {
-        await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/delete-order", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ id })
-        });
-        loadOrders();
+        try {
+          const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/delete-order", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الطلب');
+          
+          showAlert('success', 'تم حذف الطلب بنجاح');
+          loadOrders();
+        } catch (error) {
+          console.error("Error deleting order:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الطلب: " + error.message);
+        }
       }
     }
 
+    // حذف الاستفسار
     async function deleteInquiry(id) {
       if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
-        await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/delete-inquiry", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ id })
-        });
-        loadInquiries();
+        try {
+          const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/delete-inquiry", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الاستفسار');
+          
+          showAlert('success', 'تم حذف الاستفسار بنجاح');
+          loadInquiries();
+        } catch (error) {
+          console.error("Error deleting inquiry:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الاستفسار: " + error.message);
+        }
       }
     }
 
-    function openTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      document.getElementById(tabId).classList.add('active');
-      event.currentTarget.classList.add('active');
-    }
-
+    // تسجيل الخروج
     async function logout() {
-      await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/logout", { 
-        method: "POST",
-        credentials: "include"
-      });
-      window.location.href = "login.html";
+      try {
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/logout", { 
+          method: "POST",
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في تسجيل الخروج');
+        
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error("Error logging out:", error);
+        showAlert('danger', "حدث خطأ أثناء تسجيل الخروج: " + error.message);
+      }
     }
 
-    // تحميل البيانات عند فتح الصفحة
-    loadOrders();
-    loadInquiries();
+    // وظائف مساعدة
+    function showLoader(selector) {
+      const container = document.querySelector(selector);
+      if (container) {
+        container.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 30px;">
+              <div style="display: inline-block; width: 50px; height: 50px; border: 3px solid #f3f3f3; border-top: 3px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <p style="margin-top: 15px;">جاري التحميل...</p>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function showError(selector, message) {
+      const container = document.querySelector(selector);
+      if (container) {
+        container.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 30px; color: var(--danger-color);">
+              <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 10px;"></i>
+              <p>${message}</p>
+              <button class="btn btn-outline" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> إعادة المحاولة
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function showAlert(type, message) {
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        ${message}
+      `;
+      
+      const header = document.querySelector('.section-header');
+      if (header) {
+        header.parentNode.insertBefore(alert, header.nextSibling);
+        
+        setTimeout(() => {
+          alert.style.opacity = '0';
+          setTimeout(() => alert.remove(), 300);
+        }, 5000);
+      }
+    }
   </script>
 </body>
 </html>

@@ -1,88 +1,325 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Login</title>
+  <title>تسجيل الدخول - لوحة التحكم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body {
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3f37c9;
+      --accent-color: #4cc9f0;
+      --dark-color: #1a1a2e;
+      --light-color: #f8f9fa;
+      --success-color: #4caf50;
+      --warning-color: #ff9800;
+      --danger-color: #f44336;
+      --border-radius: 12px;
+      --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: 'Cairo', sans-serif;
-      background-color: #121212;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: linear-gradient(135deg, var(--dark-color), #0f3460);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
+      padding: 20px;
     }
 
     .login-container {
-      background: #1e1e1e;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #000;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: var(--border-radius);
+      padding: 40px;
       width: 100%;
-      max-width: 400px;
+      max-width: 450px;
+      box-shadow: var(--box-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transform: translateY(0);
+      transition: var(--transition);
       text-align: center;
     }
 
-    .login-container h2 {
-      margin-bottom: 25px;
+    .login-container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
     }
 
-    input {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: 1px solid #333;
-      background: #2a2a2a;
+    .logo {
+      margin-bottom: 30px;
+    }
+
+    .logo img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .login-container h2 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
       color: #fff;
     }
 
-    button {
-      background-color: orange;
-      color: black;
-      font-weight: bold;
-      padding: 12px;
+    .login-container p {
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 5px;
+    }
+
+    .input-group i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .form-control {
       width: 100%;
+      padding: 12px 15px 12px 45px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: var(--border-radius);
+      color: #fff;
+      font-family: 'Tajawal', sans-serif;
+      transition: var(--transition);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.2);
+    }
+
+    .form-control::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(to left, var(--primary-color), var(--secondary-color));
+      color: white;
       border: none;
-      border-radius: 5px;
-      margin-top: 15px;
+      border-radius: var(--border-radius);
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
       cursor: pointer;
+      transition: var(--transition);
+      margin-top: 10px;
+      box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+    }
+
+    .btn:hover {
+      background: linear-gradient(to left, var(--secondary-color), var(--primary-color));
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .forgot-password {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: var(--transition);
+    }
+
+    .forgot-password:hover {
+      color: var(--accent-color);
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .alert-danger {
+      background-color: rgba(244, 67, 54, 0.2);
+      color: #ff5252;
+      border: 1px solid rgba(244, 67, 54, 0.3);
+    }
+
+    .alert-success {
+      background-color: rgba(76, 175, 80, 0.2);
+      color: #69f0ae;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+
+    .close-alert {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    /* تأثيرات الحركة */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-container {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    /* التكيف مع الشاشات الصغيرة */
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 30px 20px;
+      }
+      
+      .login-container h2 {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
   <div class="login-container">
-    <h2>Admin Panel Login</h2>
+    <h2>تسجيل الدخول</h2>
+    <p>الرجاء إدخال بيانات الاعتماد الخاصة بك للوصول إلى لوحة التحكم</p>
+    
+    <div id="alertBox" class="alert alert-danger" style="display: none;">
+      <span id="alertMessage"></span>
+      <button class="close-alert" onclick="closeAlert()">&times;</button>
+    </div>
+    
     <form id="loginForm">
-      <input type="text" id="username" placeholder="Username" required />
-      <input type="password" id="password" placeholder="Password" required />
-      <button type="submit">Login</button>
+      <div class="form-group">
+        <label for="username">اسم المستخدم</label>
+        <div class="input-group">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" class="form-control" placeholder="أدخل اسم المستخدم" required />
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">كلمة المرور</label>
+        <div class="input-group">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" class="form-control" placeholder="أدخل كلمة المرور" required />
+        </div>
+      </div>
+      
+      <button type="submit" class="btn">
+        <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+      </button>
+      
+      <a href="#" class="forgot-password">نسيت كلمة المرور؟</a>
     </form>
   </div>
 
   <script>
+    // إظهار رسالة التنبيه
+    function showAlert(type, message) {
+      const alertBox = document.getElementById('alertBox');
+      const alertMessage = document.getElementById('alertMessage');
+      
+      alertBox.className = `alert alert-${type}`;
+      alertMessage.textContent = message;
+      alertBox.style.display = 'flex';
+    }
+
+    // إغلاق رسالة التنبيه
+    function closeAlert() {
+      document.getElementById('alertBox').style.display = 'none';
+    }
+
+    // معالجة تسجيل الدخول
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
       const username = document.getElementById("username").value;
       const password = document.getElementById("password").value;
+      
+      // عرض حالة التحميل
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحقق...';
+      btn.disabled = true;
 
-      const res = await fetch("https://store-king-esport-production-9e19.up.railway.app/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, password })
-      });
+      try {
+        const res = await fetch("https://store-king-esport-production-9362.up.railway.app/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ username, password })
+        });
 
-      const data = await res.json();
-      if (data.success) {
-        window.location.href = "dashboard.html";
-      } else {
-        alert("Login failed: " + (data.message || "Invalid credentials"));
+        const data = await res.json();
+        
+        if (data.success) {
+          showAlert('success', 'تم تسجيل الدخول بنجاح، جاري التوجيه...');
+          setTimeout(() => {
+            window.location.href = "dashboard.html";
+          }, 1500);
+        } else {
+          throw new Error(data.message || "بيانات الاعتماد غير صحيحة");
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        showAlert('danger', "فشل تسجيل الدخول: " + error.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
       }
+    });
+
+    // تأثيرات عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputs = document.querySelectorAll('.form-control');
+      inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+          input.parentElement.querySelector('i').style.color = '#4cc9f0';
+        });
+        
+        input.addEventListener('blur', () => {
+          input.parentElement.querySelector('i').style.color = 'rgba(255, 255, 255, 0.7)';
+        });
+      });
     });
   </script>
 </body>
