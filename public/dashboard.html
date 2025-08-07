@@ -1032,6 +1032,7 @@
                 <th>النوع</th>
                 <th>المبلغ</th>
                 <th>الحالة</th>
+                <th>رقم التحويل</th>
                 <th>إثبات الدفع</th>
                 <th>الإجراءات</th>
               </tr>
@@ -1215,7 +1216,7 @@
         }
 
         if (orders.length === 0) {
-          container.innerHTML = `<tr><td colspan="7" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
+          container.innerHTML = `<tr><td colspan="8" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
           return;
         }
 
@@ -1228,13 +1229,15 @@
             </td>
             <td>${order.playerId}</td>
             <td>${order.type}<br><small>${order.ucAmount || order.bundle}</small></td>
-            <td>${order.totalAmount}<br><small>${order.transactionId}</small></td>
+            <td>${order.totalAmount} ج.م</td>
             <td>
-              <span class="status ${order.status === 'تم الدفع' ? 'status-paid' : 'status-pending'}">
-                ${order.status}
-                <span class="status-indicator"></span>
+              <span class="status">
+                ${order.status === 'تم الدفع' ? '<i class="fas fa-check-circle" style="color: var(--success);"></i> تم الدفع' : 
+                   order.status === 'قيد الانتظار' ? '<i class="fas fa-hourglass-half" style="color: var(--warning);"></i> قيد الانتظار' :
+                   '<i class="fas fa-times-circle" style="color: var(--danger);"></i> لم يتم الدفع'}
               </span>
             </td>
+            <td>${order.transactionId || 'لا يوجد'}</td>
             <td>
               ${order.screenshot ? `
                 <img src="${order.screenshot}" 
@@ -1599,7 +1602,7 @@
       if (container) {
         container.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align: center; padding: 40px;">
+            <td colspan="8" style="text-align: center; padding: 40px;">
               <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
               <p style="margin-top: 15px; color: #666;">جاري التحميل...</p>
             </td>
@@ -1613,7 +1616,7 @@
       if (container) {
         container.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align: center; padding: 30px; color: var(--danger);">
+            <td colspan="8" style="text-align: center; padding: 30px; color: var(--danger);">
               <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px; color: var(--danger);"></i>
               <p style="font-weight: 600;">${message}</p>
               <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 15px;">

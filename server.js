@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // إعداد الجلسة
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'default-secret-key', // تم التحديث لاستخدام SESSION_SECRET من .env
+  secret: process.env.SESSION_SECRET || 'default-secret-key',
   resave: false,
   saveUninitialized: true,
   cookie: { 
@@ -69,9 +69,9 @@ db.serialize(() => {
     ucAmount TEXT,
     bundle TEXT,
     totalAmount TEXT,
-    transactionId TEXT,
-    screenshot TEXT,
-    status TEXT DEFAULT 'لم يتم الدفع'
+    transactionId TEXT DEFAULT NULL,  -- تم التعديل ليصبح NULL في البداية
+    screenshot TEXT DEFAULT NULL,     -- تم التعديل ليصبح NULL في البداية
+    status TEXT DEFAULT 'قيد الانتظار' -- تم التعديل ليصبح 'قيد الانتظار'
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -116,30 +116,61 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
+// مسار جديد لصفحة الدفع
+app.get("/pay.html", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pay.html'));
+});
+
 // API Routes
-app.post("/api/order", upload.single('screenshot'), (req, res) => {
-  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+// تعديل مسار إنشاء الطلب (لا يتضمن رقم التحويل أو السكرين بعد الآن)
+app.post("/api/order", (req, res) => {
+  const { name, playerId, email, ucAmount, bundle, totalAmount } = req.body;
   
-  if (!name || !playerId || !email || !transactionId || !totalAmount || (!ucAmount && !bundle)) {
-    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle)) {
+    return res.status(400).json({ success: false, message: "جميع الحقول المطلوبة (الاسم، ID اللاعب، البريد، المبلغ الإجمالي، ونوع الشحن) مطلوبة" });
   }
 
   const type = ucAmount ? "UC" : "Bundle";
-  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
   
   db.run(
-    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot],
+    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, status) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, playerId, email, type, ucAmount, bundle, totalAmount, 'قيد الانتظار'], // الحالة الأولية 'قيد الانتظار'
     function(err) {
       if (err) {
         console.error(err);
-        return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ" });
+        return res.status(500).json({ success: false, message: "حدث خطأ أثناء حفظ الطلب" });
       }
-      res.json({ success: true, id: this.lastID });
+      res.json({ success: true, id: this.lastID, message: "تم إنشاء الطلب بنجاح. يرجى إتمام الدفع." });
     }
   );
 });
+
+// مسار جديد لاستقبال بيانات الدفع (رقم التحويل والسكرين)
+app.post("/api/payment", upload.single('screenshot'), (req, res) => {
+  const { orderId, transactionId } = req.body;
+  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
+
+  if (!orderId || !transactionId || !screenshot) {
+    return res.status(400).json({ success: false, message: "معرف الطلب ورقم التحويل وصورة الإيصال مطلوبة." });
+  }
+
+  db.run(
+    `UPDATE orders SET transactionId = ?, screenshot = ?, status = 'تم الدفع' WHERE id = ?`,
+    [transactionId, screenshot, orderId],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: "حدث خطأ أثناء تحديث بيانات الدفع." });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ success: false, message: "الطلب غير موجود أو تم تحديثه مسبقاً." });
+      }
+      res.json({ success: true, message: "تم استلام إثبات الدفع بنجاح. سيتم مراجعة طلبك." });
+    }
+  );
+});
+
 
 app.post("/api/inquiry", async (req, res) => {
   const { email, message } = req.body;
