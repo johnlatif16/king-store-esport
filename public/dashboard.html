@@ -1195,7 +1195,7 @@
       try {
         showLoader('#ordersList');
         
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/orders", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/orders", {
           credentials: "include"
         });
         
@@ -1278,7 +1278,7 @@
       try {
         showLoader('#inquiriesList');
         
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/inquiries", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/inquiries", {
           credentials: "include"
         });
         
@@ -1338,7 +1338,7 @@
       try {
         showLoader('#suggestionsList');
         
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/suggestions", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/suggestions", {
           credentials: "include"
         });
         
@@ -1401,7 +1401,7 @@
     async function deleteSuggestion(id) {
       if (confirm("هل أنت متأكد من حذف هذا الاقتراح؟")) {
         try {
-          const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/delete-suggestion", {
+          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-suggestion", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -1448,7 +1448,7 @@
       }
 
       try {
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/reply-inquiry", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/reply-inquiry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -1490,7 +1490,7 @@
       }
 
       try {
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/send-message", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/send-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -1515,7 +1515,7 @@
     // تحديث حالة الطلب
     async function updateStatus(id, status) {
       try {
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/update-status", {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/update-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -1536,7 +1536,7 @@
     async function deleteOrder(id) {
       if (confirm("هل أنت متأكد من حذف الطلب؟")) {
         try {
-          const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/delete-order", {
+          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-order", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -1558,7 +1558,7 @@
     async function deleteInquiry(id) {
       if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
         try {
-          const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/delete-inquiry", {
+          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-inquiry", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -1579,7 +1579,7 @@
     // تسجيل الخروج
     async function logout() {
       try {
-        const res = await fetch("https://store-king-esport-production.up.railway.app/api/admin/logout", { 
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/logout", { 
           method: "POST",
           credentials: "include"
         });
