@@ -7,6 +7,7 @@ const nodemailer = require("nodemailer");
 const path = require("path");
 const multer = require('multer');
 const fs = require('fs');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -69,9 +70,10 @@ db.serialize(() => {
     ucAmount TEXT,
     bundle TEXT,
     totalAmount TEXT,
-    transactionId TEXT DEFAULT NULL,  -- تم التعديل ليصبح NULL في البداية
-    screenshot TEXT DEFAULT NULL,     -- تم التعديل ليصبح NULL في البداية
-    status TEXT DEFAULT 'قيد الانتظار' -- تم التعديل ليصبح 'قيد الانتظار'
+    transactionId TEXT DEFAULT NULL,
+    screenshot TEXT DEFAULT NULL,
+    status TEXT DEFAULT 'قيد الانتظار',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -100,6 +102,42 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// دالة لإرسال إشعار التيليجرام
+async function sendTelegramNotification(message) {
+  try {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    
+    if (!botToken || !chatId) {
+      console.error('Telegram bot token or chat ID not configured');
+      return;
+    }
+
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    await axios.post(url, {
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'HTML'
+    });
+  } catch (error) {
+    console.error('Error sending Telegram notification:', error.message);
+  }
+}
+
+// دالة لإرسال إشعار الجيميل
+async function sendGmailNotification(subject, htmlContent) {
+  try {
+    await transporter.sendMail({
+      from: `"نظام الإشعارات" <${process.env.SMTP_USER}>`,
+      to: process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER,
+      subject: subject,
+      html: htmlContent
+    });
+  } catch (error) {
+    console.error('Error sending Gmail notification:', error);
+  }
+}
+
 // Routes لخدمة صفحات HTML
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -116,13 +154,11 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// مسار جديد لصفحة الدفع
 app.get("/pay.html", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pay.html'));
 });
 
 // API Routes
-// تعديل مسار إنشاء الطلب (لا يتضمن رقم التحويل أو السكرين بعد الآن)
 app.post("/api/order", (req, res) => {
   const { name, playerId, email, ucAmount, bundle, totalAmount } = req.body;
   
@@ -135,19 +171,52 @@ app.post("/api/order", (req, res) => {
   db.run(
     `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, status) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, playerId, email, type, ucAmount, bundle, totalAmount, 'قيد الانتظار'], // الحالة الأولية 'قيد الانتظار'
-    function(err) {
+    [name, playerId, email, type, ucAmount, bundle, totalAmount, 'قيد الانتظار'],
+    async function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: "حدث خطأ أثناء حفظ الطلب" });
       }
+      
+      // إرسال إشعار التيليجرام
+      const telegramMessage = `
+        <b>طلب جديد 🚀</b>
+        \n<b>الاسم:</b> ${name}
+        \n<b>ID اللاعب:</b> ${playerId}
+        \n<b>البريد:</b> ${email}
+        \n<b>النوع:</b> ${type}
+        \n<b>الكمية:</b> ${ucAmount || bundle}
+        \n<b>المبلغ:</b> ${totalAmount}
+        \n<b>رقم الطلب:</b> ${this.lastID}
+        \n<b>التاريخ:</b> ${new Date().toLocaleString()}
+      `;
+      await sendTelegramNotification(telegramMessage);
+
+      // إرسال إشعار الجيميل
+      const mailSubject = `طلب جديد - ${name}`;
+      const mailHtml = `
+        <div dir="rtl">
+          <h2 style="color: #ff5722;">طلب جديد 🚀</h2>
+          <p><strong>رقم الطلب:</strong> ${this.lastID}</p>
+          <p><strong>الاسم:</strong> ${name}</p>
+          <p><strong>ID اللاعب:</strong> ${playerId}</p>
+          <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+          <p><strong>نوع الطلب:</strong> ${type}</p>
+          <p><strong>الكمية:</strong> ${ucAmount || bundle}</p>
+          <p><strong>المبلغ الإجمالي:</strong> ${totalAmount}</p>
+          <p><strong>تاريخ الطلب:</strong> ${new Date().toLocaleString()}</p>
+          <hr>
+          <p style="color: #607d8b;">يمكنك مراجعة الطلب من لوحة التحكم</p>
+        </div>
+      `;
+      await sendGmailNotification(mailSubject, mailHtml);
+
       res.json({ success: true, id: this.lastID, message: "تم إنشاء الطلب بنجاح. يرجى إتمام الدفع." });
     }
   );
 });
 
-// مسار جديد لاستقبال بيانات الدفع (رقم التحويل والسكرين)
-app.post("/api/payment", upload.single('screenshot'), (req, res) => {
+app.post("/api/payment", upload.single('screenshot'), async (req, res) => {
   const { orderId, transactionId } = req.body;
   const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -158,7 +227,7 @@ app.post("/api/payment", upload.single('screenshot'), (req, res) => {
   db.run(
     `UPDATE orders SET transactionId = ?, screenshot = ?, status = 'تم الدفع' WHERE id = ?`,
     [transactionId, screenshot, orderId],
-    function(err) {
+    async function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: "حدث خطأ أثناء تحديث بيانات الدفع." });
@@ -166,11 +235,43 @@ app.post("/api/payment", upload.single('screenshot'), (req, res) => {
       if (this.changes === 0) {
         return res.status(404).json({ success: false, message: "الطلب غير موجود أو تم تحديثه مسبقاً." });
       }
+
+      // الحصول على تفاصيل الطلب لإرسال الإشعارات
+      db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], async (err, order) => {
+        if (order) {
+          // إرسال إشعار التيليجرام
+          const telegramMessage = `
+            <b>تم الدفع ✅</b>
+            \n<b>رقم الطلب:</b> ${orderId}
+            \n<b>الاسم:</b> ${order.name}
+            \n<b>رقم التحويل:</b> ${transactionId}
+            \n<b>المبلغ:</b> ${order.totalAmount}
+            \n<b>رابط الصورة:</b> ${req.headers.host}${screenshot}
+          `;
+          await sendTelegramNotification(telegramMessage);
+
+          // إرسال إشعار الجيميل
+          const mailSubject = `تم الدفع على الطلب #${orderId}`;
+          const mailHtml = `
+            <div dir="rtl">
+              <h2 style="color: #4caf50;">تم استلام الدفع ✅</h2>
+              <p><strong>رقم الطلب:</strong> ${orderId}</p>
+              <p><strong>اسم العميل:</strong> ${order.name}</p>
+              <p><strong>رقم التحويل:</strong> ${transactionId}</p>
+              <p><strong>المبلغ:</strong> ${order.totalAmount}</p>
+              <p><strong>رابط صورة الإيصال:</strong> <a href="http://${req.headers.host}${screenshot}">اضغط هنا</a></p>
+              <hr>
+              <p style="color: #607d8b;">يرجى مراجعة الطلب وإكمال الشحن</p>
+            </div>
+          `;
+          await sendGmailNotification(mailSubject, mailHtml);
+        }
+      });
+
       res.json({ success: true, message: "تم استلام إثبات الدفع بنجاح. سيتم مراجعة طلبك." });
     }
   );
 });
-
 
 app.post("/api/inquiry", async (req, res) => {
   const { email, message } = req.body;
@@ -186,6 +287,29 @@ app.post("/api/inquiry", async (req, res) => {
       async function(err) {
         if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
+        // إرسال إشعار التيليجرام للاستفسارات
+        const telegramMessage = `
+          <b>استفسار جديد ❓</b>
+          \n<b>البريد:</b> ${email}
+          \n<b>الرسالة:</b>
+          \n${message}
+        `;
+        await sendTelegramNotification(telegramMessage);
+
+        // إرسال إشعار الجيميل للاستفسارات
+        const mailSubject = `استفسار جديد من ${email}`;
+        const mailHtml = `
+          <div dir="rtl">
+            <h2 style="color: #2196F3;">استفسار جديد ❓</h2>
+            <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+            <p><strong>الرسالة:</strong></p>
+            <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+          </div>
+        `;
+        await sendGmailNotification(mailSubject, mailHtml);
+
         await transporter.sendMail({
           from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
           to: process.env.SMTP_USER,
@@ -223,6 +347,31 @@ app.post("/api/suggestion", async (req, res) => {
       async function(err) {
         if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
+        // إرسال إشعار التيليجرام للاقتراحات
+        const telegramMessage = `
+          <b>اقتراح جديد 💡</b>
+          \n<b>الاسم:</b> ${name}
+          \n<b>طريقة التواصل:</b> ${contact}
+          \n<b>الرسالة:</b>
+          \n${message}
+        `;
+        await sendTelegramNotification(telegramMessage);
+
+        // إرسال إشعار الجيميل للاقتراحات
+        const mailSubject = `اقتراح جديد من ${name}`;
+        const mailHtml = `
+          <div dir="rtl">
+            <h2 style="color: #9C27B0;">اقتراح جديد 💡</h2>
+            <p><strong>الاسم:</strong> ${name}</p>
+            <p><strong>طريقة التواصل:</strong> ${contact}</p>
+            <p><strong>الرسالة:</strong></p>
+            <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
+              ${message.replace(/\n/g, '<br>')}
+            </div>
+          </div>
+        `;
+        await sendGmailNotification(mailSubject, mailHtml);
+
         await transporter.sendMail({
           from: `"اقتراح جديد" <${process.env.SMTP_USER}>`,
           to: process.env.SMTP_USER,
@@ -313,11 +462,40 @@ app.post("/api/admin/update-status", (req, res) => {
   db.run(
     "UPDATE orders SET status = ? WHERE id = ?",
     [status, id],
-    function(err) {
+    async function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
       }
+
+      // الحصول على تفاصيل الطلب لإرسال الإشعارات
+      db.get(`SELECT * FROM orders WHERE id = ?`, [id], async (err, order) => {
+        if (order) {
+          // إرسال إشعار التيليجرام لتغيير الحالة
+          const telegramMessage = `
+            <b>تحديث حالة الطلب 🔄</b>
+            \n<b>رقم الطلب:</b> ${id}
+            \n<b>الاسم:</b> ${order.name}
+            \n<b>الحالة الجديدة:</b> ${status}
+          `;
+          await sendTelegramNotification(telegramMessage);
+
+          // إرسال إشعار الجيميل لتغيير الحالة
+          const mailSubject = `تحديث حالة الطلب #${id}`;
+          const mailHtml = `
+            <div dir="rtl">
+              <h2 style="color: #FFC107;">تحديث حالة الطلب 🔄</h2>
+              <p><strong>رقم الطلب:</strong> ${id}</p>
+              <p><strong>اسم العميل:</strong> ${order.name}</p>
+              <p><strong>الحالة الجديدة:</strong> ${status}</p>
+              <hr>
+              <p style="color: #607d8b;">تم تحديث حالة الطلب بنجاح</p>
+            </div>
+          `;
+          await sendGmailNotification(mailSubject, mailHtml);
+        }
+      });
+
       res.json({ success: true });
     }
   );
@@ -400,6 +578,15 @@ app.post("/api/admin/reply-inquiry", async (req, res) => {
       `
     });
 
+    // إرسال إشعار التيليجرام للرد على الاستفسار
+    const telegramMessage = `
+      <b>تم إرسال رد على استفسار 📩</b>
+      \n<b>إلى:</b> ${email}
+      \n<b>الرد:</b>
+      \n${reply}
+    `;
+    await sendTelegramNotification(telegramMessage);
+
     db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId]);
     res.json({ success: true });
   } catch (error) {
@@ -432,6 +619,16 @@ app.post("/api/admin/send-message", async (req, res) => {
         </div>
       `
     });
+
+    // إرسال إشعار التيليجرام عند إرسال رسالة للعميل
+    const telegramMessage = `
+      <b>تم إرسال رسالة إلى العميل 📧</b>
+      \n<b>إلى:</b> ${email}
+      \n<b>الموضوع:</b> ${subject}
+      \n<b>الرسالة:</b>
+      \n${message}
+    `;
+    await sendTelegramNotification(telegramMessage);
 
     res.json({ success: true });
   } catch (error) {
