@@ -22,9 +22,9 @@ const db = new sqlite3.Database("./data.db", sqlite3.OPEN_READWRITE | sqlite3.OP
 });
 
 // إعدادات الميدل وير
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://king-store-esport-production.up.railway.app'],
-  credentials: true
+app.use(cors({ 
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://store-king-esport-production.up.railway.app'],
+  credentials: true 
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,8 +35,8 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'default-secret-key',
   resave: false,
   saveUninitialized: true,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // استخدم secure: true في الإنتاج
+  cookie: { 
+    secure: false,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax'
@@ -70,12 +70,9 @@ db.serialize(() => {
     ucAmount TEXT,
     bundle TEXT,
     totalAmount TEXT,
-    transactionId TEXT DEFAULT NULL,
-    screenshot TEXT DEFAULT NULL,
-    status TEXT DEFAULT 'قيد الانتظار',
-    paymob_order_id TEXT DEFAULT NULL,
-    paymob_transaction_id TEXT DEFAULT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    transactionId TEXT,
+    screenshot TEXT,
+    status TEXT DEFAULT 'لم يتم الدفع'
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -104,120 +101,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// دالة لإرسال إشعار التيليجرام
-async function sendTelegramNotification(message) {
-  try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-
-    if (!botToken || !chatId) {
-      console.error('Telegram bot token or chat ID not configured');
-      return;
-    }
-
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-    await axios.post(url, {
-      chat_id: chatId,
-      text: message,
-      parse_mode: 'HTML'
-    });
-  } catch (error) {
-    console.error('Error sending Telegram notification:', error.message);
-  }
-}
-
-// دالة لإرسال إشعار الجيميل
-async function sendGmailNotification(subject, htmlContent) {
-  try {
-    await transporter.sendMail({
-      from: `"نظام الإشعارات" <${process.env.SMTP_USER}>`,
-      to: process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER,
-      subject: subject,
-      html: htmlContent
-    });
-  } catch (error) {
-    console.error('Error sending Gmail notification:', error);
-  }
-}
-
-// Paymob API Functions
-async function paymobAuthentication() {
-  try {
-    const response = await axios.post('https://accept.paymob.com/api/auth/tokens', {
-      api_key: process.env.PAYMOB_API_KEY
-    });
-    return response.data.token;
-  } catch (error) {
-    console.error('Paymob Authentication Error:', error.response ? error.response.data : error.message);
-    throw new Error('Failed to authenticate with Paymob');
-  }
-}
-
-async function paymobRegisterOrder(authToken, orderId, amountCents, items) {
-  try {
-    const response = await axios.post('https://accept.paymob.com/api/ecommerce/orders', {
-      auth_token: authToken,
-      delivery_needed: 'false',
-      merchant_id: process.env.PAYMOB_MERCHANT_ID,
-      amount_cents: amountCents,
-      currency: 'EGP',
-      merchant_order_id: orderId, // Use our internal order ID
-      items: items,
-      // billing_data: {
-      //   apartment: "NA",
-      //   email: "NA",
-      //   floor: "NA",
-      //   first_name: "NA",
-      //   street: "NA",
-      //   building: "NA",
-      //   phone_number: "NA",
-      //   shipping_method: "NA",
-      //   postal_code: "NA",
-      //   city: "NA",
-      //   country: "NA",
-      //   last_name: "NA",
-      //   state: "NA"
-      // }
-    });
-    return response.data.id; // Paymob order ID
-  } catch (error) {
-    console.error('Paymob Register Order Error:', error.response ? error.response.data : error.message);
-    throw new Error('Failed to register order with Paymob');
-  }
-}
-
-async function paymobGetPaymentKey(authToken, amountCents, paymobOrderId, userEmail, userName, userPlayerId) {
-  try {
-    const response = await axios.post('https://accept.paymob.com/api/acceptance/payment_keys', {
-      auth_token: authToken,
-      amount_cents: amountCents,
-      expiration: 3600, // 1 hour
-      order_id: paymobOrderId,
-      billing_data: {
-        apartment: "NA", // Required by Paymob, can be dummy
-        email: userEmail,
-        floor: "NA", // Required by Paymob, can be dummy
-        first_name: userName.split(' ')[0] || "Customer",
-        street: "NA", // Required by Paymob, can be dummy
-        building: "NA", // Required by Paymob, can be dummy
-        phone_number: "NA", // Required by Paymob, can be dummy
-        shipping_method: "NA", // Required by Paymob, can be dummy
-        postal_code: "NA", // Required by Paymob, can be dummy
-        city: "NA", // Required by Paymob, can be dummy
-        country: "NA", // Required by Paymob, can be dummy
-        last_name: userName.split(' ').slice(1).join(' ') || "User",
-        state: "NA" // Required by Paymob, can be dummy
-      },
-      currency: 'EGP',
-      integration_id: process.env.PAYMOB_INTEGRATION_ID
-    });
-    return response.data.token; // Payment key
-  } catch (error) {
-    console.error('Paymob Get Payment Key Error:', error.response ? error.response.data : error.message);
-    throw new Error('Failed to get payment key from Paymob');
-  }
-}
-
 // Routes لخدمة صفحات HTML
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -234,282 +117,96 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-app.get("/pay.html", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'pay.html'));
-});
-
 // API Routes
-app.post("/api/order", (req, res) => {
-  const { name, playerId, email, ucAmount, bundle, totalAmount } = req.body;
-
-  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle)) {
-    return res.status(400).json({ success: false, message: "جميع الحقول المطلوبة (الاسم، ID اللاعب، البريد، المبلغ الإجمالي، ونوع الشحن) مطلوبة" });
+app.post("/api/order", upload.single('screenshot'), async (req, res) => {
+  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+  
+  if (!name || !playerId || !email || !transactionId || !totalAmount || (!ucAmount && !bundle)) {
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   const type = ucAmount ? "UC" : "Bundle";
-
-  db.run(
-    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, playerId, email, type, ucAmount, bundle, totalAmount, 'قيد الانتظار'],
-    async function(err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ success: false, message: "حدث خطأ أثناء حفظ الطلب" });
-      }
-
-      const orderId = this.lastID;
-
-      // إرسال إشعار التيليجرام
-      const telegramMessage = `
-        <b>طلب جديد 🚀</b>
-        \n<b>الاسم:</b> ${name}
-        \n<b>ID اللاعب:</b> ${playerId}
-        \n<b>البريد:</b> ${email}
-        \n<b>النوع:</b> ${type}
-        \n<b>الكمية:</b> ${ucAmount || bundle}
-        \n<b>المبلغ:</b> ${totalAmount}
-        \n<b>رقم الطلب:</b> ${orderId}
-        \n<b>التاريخ:</b> ${new Date().toLocaleString()}
-      `;
-      await sendTelegramNotification(telegramMessage);
-
-      // إرسال إشعار الجيميل
-      const mailSubject = `طلب جديد - ${name}`;
-      const mailHtml = `
-        <div dir="rtl">
-          <h2 style="color: #ff5722;">طلب جديد 🚀</h2>
-          <p><strong>رقم الطلب:</strong> ${orderId}</p>
-          <p><strong>الاسم:</strong> ${name}</p>
-          <p><strong>ID اللاعب:</strong> ${playerId}</p>
-          <p><strong>البريد الإلكتروني:</strong> ${email}</p>
-          <p><strong>نوع الطلب:</strong> ${type}</p>
-          <p><strong>الكمية:</strong> ${ucAmount || bundle}</p>
-          <p><strong>المبلغ الإجمالي:</strong> ${totalAmount}</p>
-          <p><strong>تاريخ الطلب:</strong> ${new Date().toLocaleString()}</p>
-          <hr>
-          <p style="color: #607d8b;">يمكنك مراجعة الطلب من لوحة التحكم</p>
-        </div>
-      `;
-      await sendGmailNotification(mailSubject, mailHtml);
-
-      res.json({ success: true, id: orderId, message: "تم إنشاء الطلب بنجاح. يرجى إتمام الدفع." });
-    }
-  );
-});
-
-// API endpoint to get order details for pay.html
-app.get("/api/order/:orderId", (req, res) => {
-  const { orderId } = req.params;
-  db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], async (err, order) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
-    }
-    if (!order) {
-      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
-    }
-
-    try {
-      const authToken = await paymobAuthentication();
-      const amountCents = parseFloat(order.totalAmount) * 100; // Convert to cents
-      const items = [{
-        name: order.type === "UC" ? `${order.ucAmount} UC` : order.bundle,
-        amount_cents: amountCents,
-        description: `Order ${order.id}`,
-        quantity: "1"
-      }];
-
-      const paymobOrderId = await paymobRegisterOrder(authToken, order.id, amountCents, items);
-      const paymentKey = await paymobGetPaymentKey(authToken, amountCents, paymobOrderId, order.email, order.name, order.playerId);
-
-      // Update our order with Paymob order ID
-      db.run(`UPDATE orders SET paymob_order_id = ? WHERE id = ?`, [paymobOrderId, order.id], (updateErr) => {
-        if (updateErr) {
-          console.error("Error updating Paymob order ID:", updateErr);
-        }
-      });
-
-      const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME_ID}?payment_token=${paymentKey}`;
-
-      res.json({
-        success: true,
-        orderId: order.id,
-        totalAmount: order.totalAmount,
-        status: order.status,
-        iframeUrl: iframeUrl
-      });
-
-    } catch (paymobError) {
-      console.error("Paymob integration error:", paymobError.message);
-      res.status(500).json({ success: false, message: "فشل في إعداد الدفع عبر Paymob: " + paymobError.message });
-    }
-  });
-});
-
-// Paymob Callback/Webhook for transaction status updates
-app.post('/api/paymob/callback', async (req, res) => {
-  const { obj, hmac } = req.body;
-
-  // Verify HMAC (Important for security)
-  // You need to implement HMAC verification using process.env.PAYMOB_HMAC
-  // For simplicity, this example skips it, but DO NOT skip it in production.
-  // Example (pseudo-code):
-  // const calculatedHmac = calculateHmac(obj, process.env.PAYMOB_HMAC);
-  // if (calculatedHmac !== hmac) {
-  //   return res.status(401).send('Invalid HMAC');
-  // }
-
-  if (obj && obj.success !== undefined) {
-    const paymobTransactionId = obj.id;
-    const paymobOrderId = obj.order.id; // This is Paymob's order ID
-    const ourOrderId = obj.order.merchant_order_id; // This is our internal order ID
-    const success = obj.success;
-    const amountCents = obj.amount_cents;
-    const currency = obj.currency;
-    const isRefunded = obj.is_refunded;
-    const isVoided = obj.is_voided;
-    const isCaptured = obj.is_captured;
-    const pending = obj.pending;
-
-    let newStatus = 'قيد الانتظار';
-    if (success) {
-      newStatus = 'تم الدفع';
-    } else if (pending) {
-      newStatus = 'قيد المعالجة';
-    } else {
-      newStatus = 'فشل الدفع';
-    }
-
+  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
+  
+  try {
+    // حفظ الطلب في قاعدة البيانات
     db.run(
-      `UPDATE orders SET status = ?, paymob_transaction_id = ? WHERE id = ? AND paymob_order_id = ?`,
-      [newStatus, paymobTransactionId, ourOrderId, paymobOrderId],
+      `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot],
       async function(err) {
         if (err) {
-          console.error("Error updating order status from Paymob callback:", err);
-          return res.status(500).send('Database error');
+          console.error(err);
+          return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ" });
         }
-        if (this.changes > 0) {
-          console.log(`Order ${ourOrderId} status updated to ${newStatus} from Paymob callback.`);
 
-          // Fetch order details for notifications
-          db.get(`SELECT * FROM orders WHERE id = ?`, [ourOrderId], async (err, order) => {
-            if (order) {
-              const telegramMessage = `
-                <b>تحديث حالة الدفع (Paymob) 🔔</b>
-                \n<b>رقم الطلب الداخلي:</b> ${ourOrderId}
-                \n<b>رقم طلب Paymob:</b> ${paymobOrderId}
-                \n<b>رقم معاملة Paymob:</b> ${paymobTransactionId}
-                \n<b>الاسم:</b> ${order.name}
-                \n<b>المبلغ:</b> ${order.totalAmount} ${currency}
-                \n<b>الحالة الجديدة:</b> ${newStatus}
-                \n<b>نجاح:</b> ${success ? '✅' : '❌'}
-              `;
-              await sendTelegramNotification(telegramMessage);
-
-              const mailSubject = `تحديث حالة الدفع لطلبك #${ourOrderId}`;
-              const mailHtml = `
-                <div dir="rtl">
-                  <h2 style="color: ${success ? '#4caf50' : '#f44336'};">تحديث حالة الدفع لطلبك #${ourOrderId}</h2>
-                  <p><strong>رقم الطلب:</strong> ${ourOrderId}</p>
-                  <p><strong>رقم معاملة Paymob:</strong> ${paymobTransactionId}</p>
-                  <p><strong>المبلغ:</strong> ${order.totalAmount} ${currency}</p>
-                  <p><strong>الحالة الجديدة:</strong> ${newStatus}</p>
-                  <p><strong>تفاصيل:</strong> ${success ? 'تم استلام دفعتك بنجاح.' : 'حدثت مشكلة أثناء معالجة دفعتك.'}</p>
-                  <hr>
-                  <p style="color: #607d8b;">إذا كان لديك أي استفسارات، يرجى التواصل مع الدعم الفني.</p>
-                </div>
-              `;
-              await sendGmailNotification(mailSubject, mailHtml);
-            }
+        const orderId = this.lastID;
+        
+        // إرسال إشعار التليجرام
+        try {
+          const telegramMessage = `
+            🚀 *طلب جديد* 🚀
+            ------------------
+            *الرقم:* ${orderId}
+            *الاسم:* ${name}
+            *البريد:* ${email}
+            *معرف اللاعب:* ${playerId}
+            *النوع:* ${type}
+            ${ucAmount ? `*كمية UC:* ${ucAmount}` : `*الباندل:* ${bundle}`}
+            *المبلغ:* ${totalAmount}
+            *رقم التحويل:* ${transactionId}
+          `;
+          
+          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: process.env.TELEGRAM_CHAT_ID,
+            text: telegramMessage,
+            parse_mode: 'Markdown'
           });
+        } catch (telegramError) {
+          console.error('Error sending Telegram notification:', telegramError);
         }
-        res.status(200).send('OK');
+
+        // إرسال إشعار البريد الإلكتروني
+        try {
+          await transporter.sendMail({
+            from: `"نظام الطلبات" <${process.env.SMTP_USER}>`,
+            to: process.env.NOTIFICATION_EMAIL,
+            subject: `طلب جديد #${orderId}`,
+            html: `
+              <div dir="rtl" style="font-family: Arial, sans-serif;">
+                <h2 style="color: #ff5722;">طلب جديد #${orderId}</h2>
+                <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                  <tr><th style="background: #f5f5f5;">الاسم</th><td>${name}</td></tr>
+                  <tr><th style="background: #f5f5f5;">البريد</th><td>${email}</td></tr>
+                  <tr><th style="background: #f5f5f5;">معرف اللاعب</th><td>${playerId}</td></tr>
+                  <tr><th style="background: #f5f5f5;">النوع</th><td>${type}</td></tr>
+                  ${ucAmount ? `<tr><th style="background: #f5f5f5;">كمية UC</th><td>${ucAmount}</td></tr>` : ''}
+                  ${bundle ? `<tr><th style="background: #f5f5f5;">الباندل</th><td>${bundle}</td></tr>` : ''}
+                  <tr><th style="background: #f5f5f5;">المبلغ</th><td>${totalAmount}</td></tr>
+                  <tr><th style="background: #f5f5f5;">رقم التحويل</th><td>${transactionId}</td></tr>
+                </table>
+                ${screenshot ? `<p>صورة التحويل: <a href="${req.protocol}://${req.get('host')}${screenshot}">رابط الصورة</a></p>` : ''}
+              </div>
+            `
+          });
+        } catch (emailError) {
+          console.error('Error sending email notification:', emailError);
+        }
+
+        res.json({ success: true, id: orderId });
       }
     );
-  } else {
-    res.status(400).send('Invalid callback data');
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء معالجة الطلب" });
   }
-});
-
-// API endpoint to check order status (for pay.html to poll)
-app.get("/api/order/:orderId/status", (req, res) => {
-  const { orderId } = req.params;
-  db.get(`SELECT status FROM orders WHERE id = ?`, [orderId], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
-    }
-    if (!row) {
-      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
-    }
-    res.json({ success: true, payment_status: row.status });
-  });
-});
-
-
-app.post("/api/payment", upload.single('screenshot'), async (req, res) => {
-  const { orderId, transactionId } = req.body;
-  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
-
-  if (!orderId || !transactionId || !screenshot) {
-    return res.status(400).json({ success: false, message: "معرف الطلب ورقم التحويل وصورة الإيصال مطلوبة." });
-  }
-
-  db.run(
-    `UPDATE orders SET transactionId = ?, screenshot = ?, status = 'تم الدفع يدوياً' WHERE id = ?`,
-    [transactionId, screenshot, orderId],
-    async function(err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ success: false, message: "حدث خطأ أثناء تحديث بيانات الدفع." });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ success: false, message: "الطلب غير موجود أو تم تحديثه مسبقاً." });
-      }
-
-      // الحصول على تفاصيل الطلب لإرسال الإشعارات
-      db.get(`SELECT * FROM orders WHERE id = ?`, [orderId], async (err, order) => {
-        if (order) {
-          // إرسال إشعار التيليجرام
-          const telegramMessage = `
-            <b>تم الدفع يدوياً ✅</b>
-            \n<b>رقم الطلب:</b> ${orderId}
-            \n<b>الاسم:</b> ${order.name}
-            \n<b>رقم التحويل:</b> ${transactionId}
-            \n<b>المبلغ:</b> ${order.totalAmount}
-            \n<b>رابط الصورة:</b> ${req.headers.host}${screenshot}
-          `;
-          await sendTelegramNotification(telegramMessage);
-
-          // إرسال إشعار الجيميل
-          const mailSubject = `تم الدفع يدوياً على الطلب #${orderId}`;
-          const mailHtml = `
-            <div dir="rtl">
-              <h2 style="color: #4caf50;">تم استلام الدفع يدوياً ✅</h2>
-              <p><strong>رقم الطلب:</strong> ${orderId}</p>
-              <p><strong>اسم العميل:</strong> ${order.name}</p>
-              <p><strong>رقم التحويل:</strong> ${transactionId}</p>
-              <p><strong>المبلغ:</strong> ${order.totalAmount}</p>
-              <p><strong>رابط صورة الإيصال:</strong> <a href="http://${req.headers.host}${screenshot}">اضغط هنا</a></p>
-              <hr>
-              <p style="color: #607d8b;">يرجى مراجعة الطلب وإكمال الشحن</p>
-            </div>
-          `;
-          await sendGmailNotification(mailSubject, mailHtml);
-        }
-      });
-
-      res.json({ success: true, message: "تم استلام إثبات الدفع بنجاح. سيتم مراجعة طلبك." });
-    }
-  );
 });
 
 app.post("/api/inquiry", async (req, res) => {
-  const { name, email, message } = req.body; // Added name field
+  const { email, message } = req.body;
   
-  if (!name || !email || !message) { // Check for name
-    return res.status(400).json({ success: false, message: "الاسم والبريد والرسالة مطلوبان" });
+  if (!email || !message) {
+    return res.status(400).json({ success: false, message: "البريد والرسالة مطلوبان" });
   }
 
   try {
@@ -519,39 +216,13 @@ app.post("/api/inquiry", async (req, res) => {
       async function(err) {
         if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
-        // إرسال إشعار التيليجرام للاستفسارات
-        const telegramMessage = `
-          <b>استفسار جديد ❓</b>
-          \n<b>الاسم:</b> ${name}
-          \n<b>البريد:</b> ${email}
-          \n<b>الرسالة:</b>
-          \n${message}
-        `;
-        await sendTelegramNotification(telegramMessage);
-
-        // إرسال إشعار الجيميل للاستفسارات
-        const mailSubject = `استفسار جديد من ${name}`;
-        const mailHtml = `
-          <div dir="rtl">
-            <h2 style="color: #2196F3;">استفسار جديد ❓</h2>
-            <p><strong>الاسم:</strong> ${name}</p>
-            <p><strong>البريد الإلكتروني:</strong> ${email}</p>
-            <p><strong>الرسالة:</strong></p>
-            <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
-              ${message.replace(/\n/g, '<br>')}
-            </div>
-          </div>
-        `;
-        await sendGmailNotification(mailSubject, mailHtml);
-
         await transporter.sendMail({
           from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
-          to: process.env.SMTP_USER, // Send to admin email
+          to: process.env.SMTP_USER,
           subject: "استفسار جديد من العميل",
           html: `
             <div dir="rtl">
               <h2 style="color: #ffa726;">استفسار جديد</h2>
-              <p><strong>الاسم:</strong> ${name}</p>
               <p><strong>البريد:</strong> ${email}</p>
               <p><strong>الرسالة:</strong></p>
               <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
@@ -582,34 +253,9 @@ app.post("/api/suggestion", async (req, res) => {
       async function(err) {
         if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
-        // إرسال إشعار التيليجرام للاقتراحات
-        const telegramMessage = `
-          <b>اقتراح جديد 💡</b>
-          \n<b>الاسم:</b> ${name}
-          \n<b>طريقة التواصل:</b> ${contact}
-          \n<b>الرسالة:</b>
-          \n${message}
-        `;
-        await sendTelegramNotification(telegramMessage);
-
-        // إرسال إشعار الجيميل للاقتراحات
-        const mailSubject = `اقتراح جديد من ${name}`;
-        const mailHtml = `
-          <div dir="rtl">
-            <h2 style="color: #9C27B0;">اقتراح جديد 💡</h2>
-            <p><strong>الاسم:</strong> ${name}</p>
-            <p><strong>طريقة التواصل:</strong> ${contact}</p>
-            <p><strong>الرسالة:</strong></p>
-            <div style="background: #f5f5f5; padding: 10px; border-radius: 5px;">
-              ${message.replace(/\n/g, '<br>')}
-            </div>
-          </div>
-        `;
-        await sendGmailNotification(mailSubject, mailHtml);
-
         await transporter.sendMail({
           from: `"اقتراح جديد" <${process.env.SMTP_USER}>`,
-          to: process.env.SMTP_USER, // Send to admin email
+          to: process.env.SMTP_USER,
           subject: "اقتراح جديد للموقع",
           html: `
             <div dir="rtl">
@@ -697,40 +343,11 @@ app.post("/api/admin/update-status", (req, res) => {
   db.run(
     "UPDATE orders SET status = ? WHERE id = ?",
     [status, id],
-    async function(err) {
+    function(err) {
       if (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
       }
-
-      // الحصول على تفاصيل الطلب لإرسال الإشعارات
-      db.get(`SELECT * FROM orders WHERE id = ?`, [id], async (err, order) => {
-        if (order) {
-          // إرسال إشعار التيليجرام لتغيير الحالة
-          const telegramMessage = `
-            <b>تحديث حالة الطلب 🔄</b>
-            \n<b>رقم الطلب:</b> ${id}
-            \n<b>الاسم:</b> ${order.name}
-            \n<b>الحالة الجديدة:</b> ${status}
-          `;
-          await sendTelegramNotification(telegramMessage);
-
-          // إرسال إشعار الجيميل لتغيير الحالة
-          const mailSubject = `تحديث حالة الطلب #${id}`;
-          const mailHtml = `
-            <div dir="rtl">
-              <h2 style="color: #FFC107;">تحديث حالة الطلب 🔄</h2>
-              <p><strong>رقم الطلب:</strong> ${id}</p>
-              <p><strong>اسم العميل:</strong> ${order.name}</p>
-              <p><strong>الحالة الجديدة:</strong> ${status}</p>
-              <hr>
-              <p style="color: #607d8b;">تم تحديث حالة الطلب بنجاح</p>
-            </div>
-          `;
-          await sendGmailNotification(mailSubject, mailHtml);
-        }
-      });
-
       res.json({ success: true });
     }
   );
@@ -813,15 +430,6 @@ app.post("/api/admin/reply-inquiry", async (req, res) => {
       `
     });
 
-    // إرسال إشعار التيليجرام للرد على الاستفسار
-    const telegramMessage = `
-      <b>تم إرسال رد على استفسار 📩</b>
-      \n<b>إلى:</b> ${email}
-      \n<b>الرد:</b>
-      \n${reply}
-    `;
-    await sendTelegramNotification(telegramMessage);
-
     db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId]);
     res.json({ success: true });
   } catch (error) {
@@ -854,16 +462,6 @@ app.post("/api/admin/send-message", async (req, res) => {
         </div>
       `
     });
-
-    // إرسال إشعار التيليجرام عند إرسال رسالة للعميل
-    const telegramMessage = `
-      <b>تم إرسال رسالة إلى العميل 📧</b>
-      \n<b>إلى:</b> ${email}
-      \n<b>الموضوع:</b> ${subject}
-      \n<b>الرسالة:</b>
-      \n${message}
-    `;
-    await sendTelegramNotification(telegramMessage);
 
     res.json({ success: true });
   } catch (error) {
