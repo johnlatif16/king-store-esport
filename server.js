@@ -7,7 +7,7 @@ const nodemailer = require("nodemailer");
 const path = require("path");
 const multer = require('multer');
 const fs = require('fs');
-const axios = require('axios');
+const axios = require('axios'); // لإجراء طلبات HTTP إلى Cashier API
 require('dotenv').config();
 
 const app = express();
@@ -26,7 +26,8 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://store-king-esport-production.up.railway.app'],
   credentials: true 
 }));
-app.use(bodyParser.json());
+// يجب أن يكون bodyParser.json() لـ webhooks قبل التحقق من التوقيع إذا كان Cashier يتطلب ذلك
+app.use(bodyParser.json()); 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -36,7 +37,7 @@ app.use(session({
   resave: false,
   saveUninitialized: true,
   cookie: { 
-    secure: false,
+    secure: process.env.NODE_ENV === 'production', // استخدم secure: true في الإنتاج
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax'
@@ -69,10 +70,10 @@ db.serialize(() => {
     type TEXT,
     ucAmount TEXT,
     bundle TEXT,
-    totalAmount TEXT,
-    transactionId TEXT,
-    screenshot TEXT,
-    status TEXT DEFAULT 'لم يتم الدفع'
+    totalAmount REAL, -- تغيير إلى REAL لتخزين الأرقام العشرية
+    cashierPaymentId TEXT, -- لتخزين معرف الدفع من Cashier
+    status TEXT DEFAULT 'قيد الانتظار', -- تغيير الحالة الافتراضية
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -103,110 +104,199 @@ const transporter = nodemailer.createTransport({
 
 // Routes لخدمة صفحات HTML
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 app.get("/dashboard", (req, res) => {
   if (!req.session.admin) {
     return res.redirect('/login');
   }
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
+app.get("/pay", (req, res) => {
+  res.sendFile(path.join(__dirname, 'pay.html'));
+});
+
+app.get("/success", (req, res) => {
+  res.sendFile(path.join(__dirname, 'success.html'));
+});
+
+app.get("/failed", (req, res) => {
+  res.sendFile(path.join(__dirname, 'failed.html'));
 });
 
 // API Routes
-app.post("/api/order", upload.single('screenshot'), async (req, res) => {
-  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+app.post("/api/order", async (req, res) => {
+  const { name, playerId, email, ucAmount, bundle, totalAmount } = req.body;
   
-  if (!name || !playerId || !email || !transactionId || !totalAmount || (!ucAmount && !bundle)) {
+  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle)) {
     return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   const type = ucAmount ? "UC" : "Bundle";
-  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
-  
+  const amountInCents = parseFloat(totalAmount) * 100; // Cashier يتوقع المبلغ بالوحدات الصغرى (سنتات)
+
   try {
-    // حفظ الطلب في قاعدة البيانات
+    // 1. حفظ الطلب في قاعدة البيانات أولاً للحصول على orderId
     db.run(
-      `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot],
+      `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, playerId, email, type, ucAmount, bundle, parseFloat(totalAmount), 'قيد الانتظار'],
       async function(err) {
         if (err) {
-          console.error(err);
-          return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ" });
+          console.error("Error saving order to DB:", err);
+          return res.status(500).json({ success: false, message: "حدث خطأ أثناء حفظ الطلب" });
         }
-
         const orderId = this.lastID;
-        
-        // إرسال إشعار التليجرام
-        try {
-          const telegramMessage = `
-            🚀 *طلب جديد* 🚀
-            ------------------
-            *الرقم:* ${orderId}
-            *الاسم:* ${name}
-            *البريد:* ${email}
-            *معرف اللاعب:* ${playerId}
-            *النوع:* ${type}
-            ${ucAmount ? `*كمية UC:* ${ucAmount}` : `*الباندل:* ${bundle}`}
-            *المبلغ:* ${totalAmount}
-            *رقم التحويل:* ${transactionId}
-          `;
-          
-          await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            chat_id: process.env.TELEGRAM_CHAT_ID,
-            text: telegramMessage,
-            parse_mode: 'Markdown'
-          });
-        } catch (telegramError) {
-          console.error('Error sending Telegram notification:', telegramError);
-        }
 
-        // إرسال إشعار البريد الإلكتروني
+        // 2. إنشاء جلسة دفع مع Cashier
         try {
-          await transporter.sendMail({
-            from: `"نظام الطلبات" <${process.env.SMTP_USER}>`,
-            to: process.env.NOTIFICATION_EMAIL,
-            subject: `طلب جديد #${orderId}`,
-            html: `
-              <div dir="rtl" style="font-family: Arial, sans-serif;">
-                <h2 style="color: #ff5722;">طلب جديد #${orderId}</h2>
-                <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-                  <tr><th style="background: #f5f5f5;">الاسم</th><td>${name}</td></tr>
-                  <tr><th style="background: #f5f5f5;">البريد</th><td>${email}</td></tr>
-                  <tr><th style="background: #f5f5f5;">معرف اللاعب</th><td>${playerId}</td></tr>
-                  <tr><th style="background: #f5f5f5;">النوع</th><td>${type}</td></tr>
-                  ${ucAmount ? `<tr><th style="background: #f5f5f5;">كمية UC</th><td>${ucAmount}</td></tr>` : ''}
-                  ${bundle ? `<tr><th style="background: #f5f5f5;">الباندل</th><td>${bundle}</td></tr>` : ''}
-                  <tr><th style="background: #f5f5f5;">المبلغ</th><td>${totalAmount}</td></tr>
-                  <tr><th style="background: #f5f5f5;">رقم التحويل</th><td>${transactionId}</td></tr>
-                </table>
-                ${screenshot ? `<p>صورة التحويل: <a href="${req.protocol}://${req.get('host')}${screenshot}">رابط الصورة</a></p>` : ''}
-              </div>
-            `
+          const cashierResponse = await axios.post('https://api.cashier.com/v1/checkout', { // استبدل بالـ endpoint الصحيح لـ Cashier
+            amount: amountInCents,
+            currency: 'EGP', // أو العملة المناسبة
+            customer_email: email,
+            metadata: {
+              order_id: orderId,
+              player_id: playerId,
+              item_type: type,
+              item_amount: ucAmount || bundle
+            },
+            success_url: `${process.env.APP_URL}/success?orderId=${orderId}`, // استبدل بـ APP_URL من .env
+            cancel_url: `${process.env.APP_URL}/failed?orderId=${orderId}`,
+            // أضف أي معلمات أخرى يطلبها Cashier API
+          }, {
+            headers: {
+              'Authorization': `Bearer ${process.env.CASHIER_SECRET_KEY}`,
+              'Content-Type': 'application/json'
+            }
           });
-        } catch (emailError) {
-          console.error('Error sending email notification:', emailError);
-        }
 
-        res.json({ success: true, id: orderId });
+          const checkoutUrl = cashierResponse.data.checkout_url; // استبدل بالخاصية الصحيحة التي تحتوي على رابط الدفع
+          const cashierPaymentId = cashierResponse.data.id; // استبدل بالخاصية الصحيحة التي تحتوي على معرف الدفع
+
+          // 3. تحديث الطلب في قاعدة البيانات بمعرف الدفع من Cashier
+          db.run(
+            `UPDATE orders SET cashierPaymentId = ? WHERE id = ?`,
+            [cashierPaymentId, orderId],
+            function(updateErr) {
+              if (updateErr) {
+                console.error("Error updating order with Cashier Payment ID:", updateErr);
+                // يمكنك اختيار ما إذا كنت تريد إرجاع خطأ هنا أو المتابعة
+              }
+              res.json({ success: true, id: orderId, checkoutUrl: checkoutUrl });
+            }
+          );
+
+        } catch (cashierError) {
+          console.error("Error creating Cashier checkout session:", cashierError.response ? cashierError.response.data : cashierError.message);
+          return res.status(500).json({ success: false, message: "فشل إنشاء جلسة الدفع مع Cashier" });
+        }
       }
     );
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: "حدث خطأ أثناء معالجة الطلب" });
+    console.error("Unhandled error in /api/order:", error);
+    res.status(500).json({ success: false, message: "حدث خطأ غير متوقع" });
   }
 });
 
+// مسار لجلب تفاصيل الطلب (لصفحة الدفع)
+app.get("/api/order/:orderId", (req, res) => {
+  const { orderId } = req.params;
+  db.get("SELECT id, name, playerId, email, type, ucAmount, bundle, totalAmount, status FROM orders WHERE id = ?", [orderId], (err, row) => {
+    if (err) {
+      console.error("Error fetching order details:", err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+    }
+    if (!row) {
+      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
+    }
+    res.json({ success: true, ...row });
+  });
+});
+
+// مسار لجلب حالة الدفع (لصفحة الدفع)
+app.get("/api/order/:orderId/status", async (req, res) => {
+  const { orderId } = req.params;
+  db.get("SELECT status FROM orders WHERE id = ?", [orderId], (err, row) => {
+    if (err) {
+      console.error("Error fetching order status:", err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+    }
+    if (!row) {
+      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
+    }
+    res.json({ success: true, payment_status: row.status });
+  });
+});
+
+// Cashier Webhook Endpoint
+app.post('/api/cashier/webhook', (req, res) => {
+  const event = req.body;
+
+  // يمكنك إضافة التحقق من توقيع الـ webhook هنا إذا كان Cashier يوفره
+  // const signature = req.headers['cashier-signature'];
+  // if (!verifyWebhookSignature(req.rawBody, signature, process.env.CASHIER_WEBHOOK_SECRET)) {
+  //   return res.status(400).send('Webhook signature verification failed.');
+  // }
+
+  console.log('Received Cashier webhook event:', event.type);
+
+  switch (event.type) {
+    case 'checkout.session.completed': // استبدل بنوع الحدث الصحيح لإتمام الدفع
+      const paymentIntent = event.data.object; // استبدل بالخاصية الصحيحة التي تحتوي على بيانات الدفع
+      const orderId = paymentIntent.metadata.order_id; // استبدل بالخاصية الصحيحة التي تحتوي على order_id
+      
+      if (orderId) {
+        db.run("UPDATE orders SET status = 'تم الدفع' WHERE id = ?", [orderId], function(err) {
+          if (err) {
+            console.error("Error updating order status on webhook:", err);
+          } else {
+            console.log(`Order ${orderId} status updated to 'تم الدفع'`);
+            // يمكنك إرسال إشعار بالبريد الإلكتروني للمسؤول هنا
+          }
+        });
+      }
+      break;
+    case 'checkout.session.failed': // استبدل بنوع الحدث الصحيح لفشل الدفع
+      const failedPayment = event.data.object;
+      const failedOrderId = failedPayment.metadata.order_id;
+      if (failedOrderId) {
+        db.run("UPDATE orders SET status = 'فشل الدفع' WHERE id = ?", [failedOrderId], function(err) {
+          if (err) {
+            console.error("Error updating order status on webhook (failed):", err);
+          } else {
+            console.log(`Order ${failedOrderId} status updated to 'فشل الدفع'`);
+          }
+        });
+      }
+      break;
+    // أضف المزيد من حالات الأحداث حسب الحاجة
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  res.status(200).send('Webhook received');
+});
+
+// وظيفة للتحقق من توقيع الـ webhook (إذا كان Cashier يوفره)
+// function verifyWebhookSignature(payload, signature, secret) {
+//   // تنفيذ منطق التحقق من التوقيع الخاص بـ Cashier
+//   // هذا يعتمد على كيفية قيام Cashier بتوقيع الـ webhooks
+//   // عادةً ما يتضمن استخدام crypto.createHmac
+//   return true; // استبدل بالمنطق الفعلي
+// }
+
+
 app.post("/api/inquiry", async (req, res) => {
-  const { email, message } = req.body;
+  const { name, email, message } = req.body; // أضفت name هنا
   
-  if (!email || !message) {
-    return res.status(400).json({ success: false, message: "البريد والرسالة مطلوبان" });
+  if (!email || !message || !name) { // التحقق من name
+    return res.status(400).json({ success: false, message: "الاسم والبريد والرسالة مطلوبان" });
   }
 
   try {
@@ -219,10 +309,11 @@ app.post("/api/inquiry", async (req, res) => {
         await transporter.sendMail({
           from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
           to: process.env.SMTP_USER,
-          subject: "استفسار جديد من العميل",
+          subject: `استفسار جديد من ${name}`, // استخدام الاسم في الموضوع
           html: `
             <div dir="rtl">
               <h2 style="color: #ffa726;">استفسار جديد</h2>
+              <p><strong>الاسم:</strong> ${name}</p>
               <p><strong>البريد:</strong> ${email}</p>
               <p><strong>الرسالة:</strong></p>
               <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
@@ -256,7 +347,7 @@ app.post("/api/suggestion", async (req, res) => {
         await transporter.sendMail({
           from: `"اقتراح جديد" <${process.env.SMTP_USER}>`,
           to: process.env.SMTP_USER,
-          subject: "اقتراح جديد للموقع",
+          subject: `اقتراح جديد من ${name}`,
           html: `
             <div dir="rtl">
               <h2 style="color: #ffa726;">اقتراح جديد</h2>
