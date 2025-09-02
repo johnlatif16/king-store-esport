@@ -1032,8 +1032,7 @@
                 <th>النوع</th>
                 <th>المبلغ</th>
                 <th>الحالة</th>
-                <th>رقم المحول</th>
-                <th>طريقة الدفع</th>
+                <th>رقم التحويل</th>
                 <th>إثبات الدفع</th>
                 <th>الإجراءات</th>
               </tr>
@@ -1189,11 +1188,7 @@
       });
       
       document.getElementById(tabId).classList.add('active');
-      // استخدام event.currentTarget لضمان تفعيل الرابط الصحيح
-      const clickedLink = event.currentTarget;
-      if (clickedLink) {
-        clickedLink.classList.add('active');
-      }
+      event.currentTarget.classList.add('active');
     }
 
     // تحميل الطلبات
@@ -1205,10 +1200,7 @@
           credentials: "include"
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'فشل في جلب الطلبات');
-        }
+        if (!res.ok) throw new Error('فشل في جلب الطلبات');
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الطلبات');
@@ -1224,7 +1216,7 @@
         }
 
         if (orders.length === 0) {
-          container.innerHTML = `<tr><td colspan="9" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
+          container.innerHTML = `<tr><td colspan="8" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
           return;
         }
 
@@ -1245,8 +1237,7 @@
                    '<i class="fas fa-times-circle" style="color: var(--danger);"></i> لم يتم الدفع'}
               </span>
             </td>
-            <td>${order.payerPhone || 'لا يوجد'}</td>
-            <td>${order.paymentMethod || 'غير محدد'}</td>
+            <td>${order.transactionId || 'لا يوجد'}</td>
             <td>
               ${order.screenshot ? `
                 <img src="${order.screenshot}" 
@@ -1294,10 +1285,7 @@
           credentials: "include"
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'فشل في جلب الاستفسارات');
-        }
+        if (!res.ok) throw new Error('فشل في جلب الاستفسارات');
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الاستفسارات');
@@ -1357,10 +1345,7 @@
           credentials: "include"
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'فشل في جلب الاقتراحات');
-        }
+        if (!res.ok) throw new Error('فشل في جلب الاقتراحات');
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الاقتراحات');
@@ -1412,8 +1397,6 @@
       document.getElementById('clientEmail').value = contact.includes('@') ? contact : '';
       document.getElementById('emailSubject').value = "رد على اقتراحك";
       openTab('messagesTab');
-      // تفعيل الرابط في الشريط الجانبي لـ "الرسائل المباشرة"
-      document.querySelector('.nav-link[onclick="openTab(\'messagesTab\')"]').classList.add('active');
       document.getElementById('emailMessage').focus();
     }
 
@@ -1428,10 +1411,7 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || 'فشل في حذف الاقتراح');
-          }
+          if (!res.ok) throw new Error('فشل في حذف الاقتراح');
           
           showAlert('success', 'تم حذف الاقتراح بنجاح');
           loadSuggestions();
@@ -1545,10 +1525,7 @@
           body: JSON.stringify({ id, status })
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'فشل في تحديث الحالة');
-        }
+        if (!res.ok) throw new Error('فشل في تحديث الحالة');
         
         showAlert('success', 'تم تحديث حالة الطلب بنجاح');
         loadOrders();
@@ -1569,10 +1546,7 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || 'فشل في حذف الطلب');
-          }
+          if (!res.ok) throw new Error('فشل في حذف الطلب');
           
           showAlert('success', 'تم حذف الطلب بنجاح');
           loadOrders();
@@ -1594,10 +1568,7 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || 'فشل في حذف الاستفسار');
-          }
+          if (!res.ok) throw new Error('فشل في حذف الاستفسار');
           
           showAlert('success', 'تم حذف الاستفسار بنجاح');
           loadInquiries();
@@ -1616,10 +1587,7 @@
           credentials: "include"
         });
         
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'فشل في تسجيل الخروج');
-        }
+        if (!res.ok) throw new Error('فشل في تسجيل الخروج');
         
         window.location.href = "login.html";
       } catch (error) {
@@ -1634,7 +1602,7 @@
       if (container) {
         container.innerHTML = `
           <tr>
-            <td colspan="9" style="text-align: center; padding: 40px;">
+            <td colspan="8" style="text-align: center; padding: 40px;">
               <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
               <p style="margin-top: 15px; color: #666;">جاري التحميل...</p>
             </td>
@@ -1646,15 +1614,9 @@
     function showError(selector, message) {
       const container = document.querySelector(selector);
       if (container) {
-        // تحديد عدد الأعمدة بناءً على الـ selector
-        let colspan = 9; // افتراضي للطلبات
-        if (selector === '#inquiriesList' || selector === '#suggestionsList') {
-          colspan = 5;
-        }
-
         container.innerHTML = `
           <tr>
-            <td colspan="${colspan}" style="text-align: center; padding: 30px; color: var(--danger);">
+            <td colspan="8" style="text-align: center; padding: 30px; color: var(--danger);">
               <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px; color: var(--danger);"></i>
               <p style="font-weight: 600;">${message}</p>
               <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 15px;">
