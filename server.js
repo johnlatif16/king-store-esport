@@ -276,3 +276,7 @@ app.get("/api/admin/inquiries", (req, res) => {
   if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
   
   db.all("SELECT * FROM inquiries ORDER BY created_at DESC", (err, rows) => {
+
+         app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
