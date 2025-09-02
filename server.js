@@ -7,6 +7,7 @@ const nodemailer = require("nodemailer");
 const path = require("path");
 const multer = require('multer');
 const fs = require('fs');
+const fetch = require('node-fetch'); // إضافة مكتبة node-fetch لإشعارات Telegram
 require('dotenv').config();
 
 const app = express();
@@ -129,7 +130,7 @@ db.serialize(() => {
     //   }
     //   if (row.count === 0) {
     //     // قم بتغيير 'admin_user' و 'admin_pass' إلى قيم آمنة
-    //     db.run("INSERT INTO admins (username, password) VALUES (?, ?)", ['admin_user', 'admin_pass'], (err) => {
+    //     db.run("INSERT INTO admins (username, password) VALUES (?, ?)", [process.env.ADMIN_USER, process.env.ADMIN_PASS], (err) => {
     //       if (err) console.error("Error inserting default admin:", err.message);
     //       else console.log("Default admin user created.");
     //     });
@@ -140,12 +141,45 @@ db.serialize(() => {
 
 // إعداد البريد الإلكتروني (Nodemailer)
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // يمكنك استخدام خدمات أخرى مثل 'Outlook', 'Yahoo'
+  service: process.env.SMTP_SERVICE || 'gmail', // استخدام SMTP_SERVICE من .env
   auth: {
-    user: process.env.SMTP_USER, // بريد إلكتروني للمرسل من ملف .env
-    pass: process.env.SMTP_PASS, // كلمة مرور التطبيق أو كلمة المرور العادية من ملف .env
+    user: process.env.SMTP_USER, 
+    pass: process.env.SMTP_PASS, 
   },
 });
+
+// دالة لإرسال إشعار Telegram
+async function sendTelegramNotification(message) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+
+  if (!botToken || !chatId) {
+    console.warn("Telegram bot token or chat ID is not set. Skipping Telegram notification.");
+    return;
+  }
+
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML' // للسماح بتنسيق HTML في الرسالة
+      })
+    });
+    const data = await response.json();
+    if (!data.ok) {
+      console.error("Failed to send Telegram message:", data.description);
+    } else {
+      console.log("Telegram notification sent successfully.");
+    }
+  } catch (error) {
+    console.error("Error sending Telegram notification:", error);
+  }
+}
+
 
 // Middleware للتحقق من صلاحيات المسؤول
 const isAuthenticatedAdmin = (req, res, next) => {
@@ -222,8 +256,44 @@ app.post("/api/order", upload.single('screenshot'), (req, res) => {
         }
         return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حفظ الطلب." });
       }
-      // بدلاً من إرسال JSON مباشرة، نقوم بإعادة توجيه إلى صفحة الدفع مع orderId
-      res.status(201).json({ success: true, message: "تم إرسال الطلب بنجاح.", orderId: this.lastID });
+      const orderId = this.lastID;
+
+      // إرسال إشعار بالبريد الإلكتروني للمسؤول
+      const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+      if (notificationEmail) {
+        transporter.sendMail({
+          from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
+          to: notificationEmail,
+          subject: `طلب جديد #${orderId} - ${name}`,
+          html: `
+            <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
+              <h2 style="color: #ff7a00;">طلب جديد</h2>
+              <p><strong>رقم الطلب:</strong> ${orderId}</p>
+              <p><strong>العميل:</strong> ${name} (${email})</p>
+              <p><strong>ID اللاعب:</strong> ${playerId}</p>
+              <p><strong>النوع:</strong> ${type} (${ucAmount || bundle})</p>
+              <p><strong>المبلغ الإجمالي:</strong> ${totalAmount}</p>
+              <p><strong>رقم التحويل:</strong> ${transactionId}</p>
+              ${screenshotPath ? `<p><strong>إثبات الدفع:</strong> <a href="https://king-store-esport-production.up.railway.app${screenshotPath}">عرض الصورة</a></p>` : ''}
+              <p>يرجى مراجعة الطلب في لوحة التحكم.</p>
+            </div>
+          `,
+        }).catch(mailError => console.error("Error sending order notification email:", mailError));
+      }
+
+      // إرسال إشعار Telegram
+      const telegramMessage = `<b>طلب جديد!</b>\n\n` +
+                              `<b>رقم الطلب:</b> ${orderId}\n` +
+                              `<b>العميل:</b> ${name}\n` +
+                              `<b>ID اللاعب:</b> ${playerId}\n` +
+                              `<b>النوع:</b> ${type} (${ucAmount || bundle})\n` +
+                              `<b>المبلغ:</b> ${totalAmount}\n` +
+                              `<b>رقم التحويل:</b> ${transactionId}\n` +
+                              `${screenshotPath ? `<b>إثبات الدفع:</b> <a href="https://king-store-esport-production.up.railway.app${screenshotPath}">عرض الصورة</a>\n` : ''}` +
+                              `\nيرجى مراجعة لوحة التحكم.`;
+      sendTelegramNotification(telegramMessage);
+
+      res.status(201).json({ success: true, message: "تم إرسال الطلب بنجاح.", orderId: orderId });
     }
   );
 });
@@ -263,10 +333,11 @@ app.post("/api/inquiry", async (req, res) => {
         }
         
         // إرسال إشعار بالبريد الإلكتروني للمسؤول
-        try {
-          await transporter.sendMail({
+        const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+        if (notificationEmail) {
+          transporter.sendMail({
             from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
-            to: process.env.SMTP_USER, // إرسال الإشعار إلى بريد المسؤول
+            to: notificationEmail, // إرسال الإشعار إلى بريد المسؤول
             subject: "استفسار جديد من العميل",
             html: `
               <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
@@ -277,11 +348,15 @@ app.post("/api/inquiry", async (req, res) => {
                 <p>يرجى الرد على هذا الاستفسار في أقرب وقت ممكن من لوحة التحكم.</p>
               </div>
             `,
-          });
-        } catch (mailError) {
-          console.error("Error sending inquiry notification email:", mailError);
-          // لا نرجع خطأ 500 للعميل إذا فشل إرسال البريد فقط، لأن الاستفسار تم حفظه
+          }).catch(mailError => console.error("Error sending inquiry notification email:", mailError));
         }
+
+        // إرسال إشعار Telegram
+        const telegramMessage = `<b>استفسار جديد!</b>\n\n` +
+                                `<b>البريد الإلكتروني:</b> ${email}\n` +
+                                `<b>الرسالة:</b> ${message}\n` +
+                                `\nيرجى مراجعة لوحة التحكم.`;
+        sendTelegramNotification(telegramMessage);
         
         res.status(201).json({ success: true, message: "تم إرسال استفسارك بنجاح." });
       }
@@ -311,10 +386,11 @@ app.post("/api/suggestion", async (req, res) => {
         }
         
         // إرسال إشعار بالبريد الإلكتروني للمسؤول
-        try {
-          await transporter.sendMail({
+        const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
+        if (notificationEmail) {
+          transporter.sendMail({
             from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
-            to: process.env.SMTP_USER, // إرسال الإشعار إلى بريد المسؤول
+            to: notificationEmail, // إرسال الإشعار إلى بريد المسؤول
             subject: "اقتراح جديد للموقع",
             html: `
               <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
@@ -325,10 +401,16 @@ app.post("/api/suggestion", async (req, res) => {
                 <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ff7a00; border-radius: 5px;">${message}</p>
               </div>
             `,
-          });
-        } catch (mailError) {
-          console.error("Error sending suggestion notification email:", mailError);
+          }).catch(mailError => console.error("Error sending suggestion notification email:", mailError));
         }
+
+        // إرسال إشعار Telegram
+        const telegramMessage = `<b>اقتراح جديد!</b>\n\n` +
+                                `<b>الاسم:</b> ${name}\n` +
+                                `<b>التواصل:</b> ${contact}\n` +
+                                `<b>الاقتراح:</b> ${message}\n` +
+                                `\nيرجى مراجعة لوحة التحكم.`;
+        sendTelegramNotification(telegramMessage);
         
         res.status(201).json({ success: true, message: "تم إرسال اقتراحك بنجاح." });
       }
@@ -530,7 +612,7 @@ app.post("/api/admin/reply-inquiry", isAuthenticatedAdmin, async (req, res) => {
           <p style="text-align: center; color: #777; font-size: 0.9rem;">مع خالص التحيات،<br>فريق دعم King Esports</p>
         </div>
       `
-    });
+    }).catch(mailError => console.error("Error sending reply email:", mailError));
 
     db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId], function(err) {
       if (err) {
@@ -567,7 +649,7 @@ app.post("/api/admin/send-message", isAuthenticatedAdmin, async (req, res) => {
           <p style="text-align: center; color: #777; font-size: 0.9rem;">مع خالص التحيات،<br>فريق King Esports</p>
         </div>
       `
-    });
+    }).catch(mailError => console.error("Error sending direct message email:", mailError));
 
     res.json({ success: true, message: "تم إرسال الرسالة بنجاح." });
   } catch (error) {
