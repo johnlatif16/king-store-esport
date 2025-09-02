@@ -14,8 +14,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -23,6 +23,12 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false }
 }));
+
+// Middleware لتسجيل الطلبات (للتشخيص)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 // تكوين multer لتحميل الملفات
 const storage = multer.diskStorage({
@@ -86,13 +92,19 @@ db.serialize(() => {
     if (row && row.count === 0) {
       const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
       db.run("INSERT INTO admins (username, password) VALUES (?, ?)", 
-        ['admin', defaultPassword]);
+        ['admin', defaultPassword], function(err) {
+          if (err) {
+            console.error('خطأ في إضافة المسؤول الافتراضي:', err);
+          } else {
+            console.log('تم إضافة المسؤول الافتراضي بنجاح');
+          }
+        });
     }
   });
 });
 
-// تكوين nodemailer لإرسال البريد الإلكتروني
-const transporter = nodemailer.createTransporter({
+// تكوين nodemailer لإرسال البريد الإلكتروني - التصحيح هنا
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -116,6 +128,7 @@ async function sendTelegramMessage(message) {
       text: message,
       parse_mode: 'HTML'
     });
+    console.log('تم إرسال رسالة التيليجرام بنجاح');
   } catch (error) {
     console.error('خطأ في إرسال رسالة التيليجرام:', error.message);
   }
@@ -131,8 +144,10 @@ async function sendEmail(to, subject, html) {
       html: html
     });
     console.log('تم إرسال البريد الإلكتروني بنجاح إلى:', to);
+    return true;
   } catch (error) {
     console.error('خطأ في إرسال البريد الإلكتروني:', error.message);
+    return false;
   }
 }
 
@@ -168,6 +183,7 @@ app.post('/api/admin/login', (req, res) => {
   db.get("SELECT * FROM admins WHERE username = ? AND password = ?", 
     [username, password], (err, row) => {
     if (err) {
+      console.error('خطأ في قاعدة البيانات:', err);
       return res.status(500).json({ success: false, message: 'خطأ في الخادم' });
     }
     
@@ -184,6 +200,7 @@ app.post('/api/admin/login', (req, res) => {
 app.post('/api/admin/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
+      console.error('خطأ في تسجيل الخروج:', err);
       return res.status(500).json({ success: false, message: 'خطأ في تسجيل الخروج' });
     }
     res.json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
@@ -196,6 +213,8 @@ app.post('/api/order', upload.single('screenshot'), async (req, res) => {
     const { name, playerId, email, ucAmount, bundle, transactionId, totalAmount } = req.body;
     const screenshot = req.file ? req.file.filename : null;
 
+    console.log('استلام طلب جديد:', { name, playerId, email, ucAmount, bundle, transactionId, totalAmount });
+
     // حفظ الطلب في قاعدة البيانات
     db.run(`INSERT INTO orders (name, playerId, email, ucAmount, bundle, transactionId, totalAmount, screenshot) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -207,6 +226,7 @@ app.post('/api/order', upload.single('screenshot'), async (req, res) => {
         }
 
         const orderId = this.lastID;
+        console.log('تم حفظ الطلب برقم:', orderId);
         
         // إرسال إشعار إلى التيليجرام
         const telegramMessage = `
@@ -233,7 +253,12 @@ app.post('/api/order', upload.single('screenshot'), async (req, res) => {
           <p><strong>رقم التحويل:</strong> ${transactionId}</p>
           <p><strong>رقم الطلب:</strong> ${orderId}</p>
         `;
-        sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        
+        if (process.env.ADMIN_EMAIL) {
+          sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        } else {
+          console.log('لم يتم تحديد بريد المسؤول');
+        }
 
         res.json({ success: true, orderId: orderId });
       }
@@ -249,6 +274,8 @@ app.post('/api/inquiry', async (req, res) => {
   try {
     const { name, email, message } = req.body;
 
+    console.log('استلام استفسار جديد:', { name, email, message });
+
     // حفظ الاستفسار في قاعدة البيانات
     db.run(`INSERT INTO inquiries (name, email, message) VALUES (?, ?, ?)`,
       [name, email, message],
@@ -259,6 +286,7 @@ app.post('/api/inquiry', async (req, res) => {
         }
 
         const inquiryId = this.lastID;
+        console.log('تم حفظ الاستفسار برقم:', inquiryId);
         
         // إرسال إشعار إلى التيليجرام
         const telegramMessage = `
@@ -279,7 +307,12 @@ app.post('/api/inquiry', async (req, res) => {
           <p><strong>الرسالة:</strong> ${message}</p>
           <p><strong>رقم الاستفسار:</strong> ${inquiryId}</p>
         `;
-        sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        
+        if (process.env.ADMIN_EMAIL) {
+          sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        } else {
+          console.log('لم يتم تحديد بريد المسؤول');
+        }
 
         res.json({ success: true, message: 'تم إرسال الاستفسار بنجاح' });
       }
@@ -295,6 +328,8 @@ app.post('/api/suggestion', async (req, res) => {
   try {
     const { name, contact, message } = req.body;
 
+    console.log('استلام اقتراح جديد:', { name, contact, message });
+
     // حفظ الاقتراح في قاعدة البيانات
     db.run(`INSERT INTO suggestions (name, contact, message) VALUES (?, ?, ?)`,
       [name, contact, message],
@@ -305,6 +340,7 @@ app.post('/api/suggestion', async (req, res) => {
         }
 
         const suggestionId = this.lastID;
+        console.log('تم حفظ الاقتراح برقم:', suggestionId);
         
         // إرسال إشعار إلى التيليجرام
         const telegramMessage = `
@@ -325,7 +361,12 @@ app.post('/api/suggestion', async (req, res) => {
           <p><strong>الاقتراح:</strong> ${message}</p>
           <p><strong>رقم الاقتراح:</strong> ${suggestionId}</p>
         `;
-        sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        
+        if (process.env.ADMIN_EMAIL) {
+          sendEmail(process.env.ADMIN_EMAIL, emailSubject, emailHtml);
+        } else {
+          console.log('لم يتم تحديد بريد المسؤول');
+        }
 
         res.json({ success: true, message: 'تم إرسال الاقتراح بنجاح' });
       }
@@ -344,6 +385,7 @@ app.get('/api/admin/orders', (req, res) => {
 
   db.all("SELECT * FROM orders ORDER BY created_at DESC", (err, rows) => {
     if (err) {
+      console.error('خطأ في جلب الطلبات:', err);
       return res.status(500).json({ success: false, message: 'خطأ في جلب الطلبات' });
     }
     res.json({ success: true, data: rows });
@@ -358,6 +400,7 @@ app.get('/api/admin/inquiries', (req, res) => {
 
   db.all("SELECT * FROM inquiries ORDER BY created_at DESC", (err, rows) => {
     if (err) {
+      console.error('خطأ في جلب الاستفسارات:', err);
       return res.status(500).json({ success: false, message: 'خطأ في جلب الاستفسارات' });
     }
     res.json({ success: true, data: rows });
@@ -372,6 +415,7 @@ app.get('/api/admin/suggestions', (req, res) => {
 
   db.all("SELECT * FROM suggestions ORDER BY created_at DESC", (err, rows) => {
     if (err) {
+      console.error('خطأ في جلب الاقتراحات:', err);
       return res.status(500).json({ success: false, message: 'خطأ في جلب الاقتراحات' });
     }
     res.json({ success: true, data: rows });
@@ -387,6 +431,7 @@ app.post('/api/admin/update-status', (req, res) => {
   const { id, status } = req.body;
   db.run("UPDATE orders SET status = ? WHERE id = ?", [status, id], (err) => {
     if (err) {
+      console.error('خطأ في تحديث الحالة:', err);
       return res.status(500).json({ success: false, message: 'خطأ في تحديث الحالة' });
     }
     res.json({ success: true, message: 'تم تحديث الحالة بنجاح' });
@@ -402,6 +447,7 @@ app.delete('/api/admin/delete-order', (req, res) => {
   const { id } = req.body;
   db.run("DELETE FROM orders WHERE id = ?", [id], (err) => {
     if (err) {
+      console.error('خطأ في حذف الطلب:', err);
       return res.status(500).json({ success: false, message: 'خطأ في حذف الطلب' });
     }
     res.json({ success: true, message: 'تم حذف الطلب بنجاح' });
@@ -417,6 +463,7 @@ app.delete('/api/admin/delete-inquiry', (req, res) => {
   const { id } = req.body;
   db.run("DELETE FROM inquiries WHERE id = ?", [id], (err) => {
     if (err) {
+      console.error('خطأ في حذف الاستفسار:', err);
       return res.status(500).json({ success: false, message: 'خطأ في حذف الاستفسار' });
     }
     res.json({ success: true, message: 'تم حذف الاستفسار بنجاح' });
@@ -432,6 +479,7 @@ app.delete('/api/admin/delete-suggestion', (req, res) => {
   const { id } = req.body;
   db.run("DELETE FROM suggestions WHERE id = ?", [id], (err) => {
     if (err) {
+      console.error('خطأ في حذف الاقتراح:', err);
       return res.status(500).json({ success: false, message: 'خطأ في حذف الاقتراح' });
     }
     res.json({ success: true, message: 'تم حذف الاقتراح بنجاح' });
@@ -460,8 +508,12 @@ app.post('/api/admin/reply-inquiry', async (req, res) => {
       <p>مع تحيات،<br>فريق King STORE个ESPORTSツ</p>
     `;
 
-    await sendEmail(email, emailSubject, emailHtml);
-    res.json({ success: true, message: 'تم إرسال الرد بنجاح' });
+    const emailSent = await sendEmail(email, emailSubject, emailHtml);
+    if (emailSent) {
+      res.json({ success: true, message: 'تم إرسال الرد بنجاح' });
+    } else {
+      res.status(500).json({ success: false, message: 'خطأ في إرسال الرد' });
+    }
   } catch (error) {
     console.error('خطأ في إرسال الرد:', error);
     res.status(500).json({ success: false, message: 'خطأ في إرسال الرد' });
@@ -485,8 +537,12 @@ app.post('/api/admin/send-message', async (req, res) => {
       <p>مع تحيات،<br>فريق King STORE个ESPORTSツ</p>
     `;
 
-    await sendEmail(email, subject, emailHtml);
-    res.json({ success: true, message: 'تم إرسال الرسالة بنجاح' });
+    const emailSent = await sendEmail(email, subject, emailHtml);
+    if (emailSent) {
+      res.json({ success: true, message: 'تم إرسال الرسالة بنجاح' });
+    } else {
+      res.status(500).json({ success: false, message: 'خطأ في إرسال الرسالة' });
+    }
   } catch (error) {
     console.error('خطأ في إرسال الرسالة:', error);
     res.status(500).json({ success: false, message: 'خطأ في إرسال الرسالة' });
@@ -501,4 +557,5 @@ app.use((req, res) => {
 // بدء الخادم
 app.listen(PORT, () => {
   console.log(`الخادم يعمل على المنفذ ${PORT}`);
+  console.log(`يمكنك الوصول إلى التطبيق على: http://localhost:${PORT}`);
 });
