@@ -1189,7 +1189,11 @@
       });
       
       document.getElementById(tabId).classList.add('active');
-      event.currentTarget.classList.add('active');
+      // استخدام event.currentTarget لضمان تفعيل الرابط الصحيح
+      const clickedLink = event.currentTarget;
+      if (clickedLink) {
+        clickedLink.classList.add('active');
+      }
     }
 
     // تحميل الطلبات
@@ -1201,7 +1205,10 @@
           credentials: "include"
         });
         
-        if (!res.ok) throw new Error('فشل في جلب الطلبات');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'فشل في جلب الطلبات');
+        }
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الطلبات');
@@ -1287,7 +1294,10 @@
           credentials: "include"
         });
         
-        if (!res.ok) throw new Error('فشل في جلب الاستفسارات');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'فشل في جلب الاستفسارات');
+        }
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الاستفسارات');
@@ -1347,7 +1357,10 @@
           credentials: "include"
         });
         
-        if (!res.ok) throw new Error('فشل في جلب الاقتراحات');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'فشل في جلب الاقتراحات');
+        }
         
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'فشل في تحميل الاقتراحات');
@@ -1399,6 +1412,8 @@
       document.getElementById('clientEmail').value = contact.includes('@') ? contact : '';
       document.getElementById('emailSubject').value = "رد على اقتراحك";
       openTab('messagesTab');
+      // تفعيل الرابط في الشريط الجانبي لـ "الرسائل المباشرة"
+      document.querySelector('.nav-link[onclick="openTab(\'messagesTab\')"]').classList.add('active');
       document.getElementById('emailMessage').focus();
     }
 
@@ -1413,7 +1428,10 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) throw new Error('فشل في حذف الاقتراح');
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'فشل في حذف الاقتراح');
+          }
           
           showAlert('success', 'تم حذف الاقتراح بنجاح');
           loadSuggestions();
@@ -1527,7 +1545,10 @@
           body: JSON.stringify({ id, status })
         });
         
-        if (!res.ok) throw new Error('فشل في تحديث الحالة');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'فشل في تحديث الحالة');
+        }
         
         showAlert('success', 'تم تحديث حالة الطلب بنجاح');
         loadOrders();
@@ -1548,7 +1569,10 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) throw new Error('فشل في حذف الطلب');
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'فشل في حذف الطلب');
+          }
           
           showAlert('success', 'تم حذف الطلب بنجاح');
           loadOrders();
@@ -1570,7 +1594,10 @@
             body: JSON.stringify({ id })
           });
           
-          if (!res.ok) throw new Error('فشل في حذف الاستفسار');
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'فشل في حذف الاستفسار');
+          }
           
           showAlert('success', 'تم حذف الاستفسار بنجاح');
           loadInquiries();
@@ -1589,7 +1616,10 @@
           credentials: "include"
         });
         
-        if (!res.ok) throw new Error('فشل في تسجيل الخروج');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || 'فشل في تسجيل الخروج');
+        }
         
         window.location.href = "login.html";
       } catch (error) {
@@ -1616,9 +1646,15 @@
     function showError(selector, message) {
       const container = document.querySelector(selector);
       if (container) {
+        // تحديد عدد الأعمدة بناءً على الـ selector
+        let colspan = 9; // افتراضي للطلبات
+        if (selector === '#inquiriesList' || selector === '#suggestionsList') {
+          colspan = 5;
+        }
+
         container.innerHTML = `
           <tr>
-            <td colspan="9" style="text-align: center; padding: 30px; color: var(--danger);">
+            <td colspan="${colspan}" style="text-align: center; padding: 30px; color: var(--danger);">
               <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px; color: var(--danger);"></i>
               <p style="font-weight: 600;">${message}</p>
               <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 15px;">
