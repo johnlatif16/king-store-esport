@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // إعداد الجلسة
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'default-secret-key',
+  secret: process.env.SESSION_SECRET || 'default-secret-key', // تم التحديث لاستخدام SESSION_SECRET من .env
   resave: false,
   saveUninitialized: true,
   cookie: { 
@@ -72,8 +72,8 @@ db.serialize(() => {
     transactionId TEXT,
     screenshot TEXT,
     status TEXT DEFAULT 'لم يتم الدفع',
-    payerPhone TEXT,
-    paymentMethod TEXT
+    payerPhone TEXT,  -- إضافة حقل جديد لرقم المحول
+    paymentMethod TEXT  -- إضافة حقل جديد لطريقة الدفع
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -119,12 +119,10 @@ app.get("/dashboard", (req, res) => {
 });
 
 // API Routes
-
-// إضافة طلب جديد مع رفع صورة
 app.post("/api/order", upload.single('screenshot'), (req, res) => {
   const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, payerPhone, paymentMethod } = req.body;
   
-  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle) || !transactionId || !payerPhone || !paymentMethod) {
+  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle) || !payerPhone || !paymentMethod) {
     return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
@@ -145,27 +143,11 @@ app.post("/api/order", upload.single('screenshot'), (req, res) => {
   );
 });
 
-// جلب بيانات طلب معين (لصفحة الدفع)
-app.get("/api/order/:id", (req, res) => {
-  const orderId = req.params.id;
-  db.get("SELECT * FROM orders WHERE id = ?", [orderId], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
-    }
-    if (!row) {
-      return res.status(404).json({ success: false, message: "الطلب غير موجود" });
-    }
-    res.json({ success: true, data: row });
-  });
-});
-
-// إضافة استفسار جديد
 app.post("/api/inquiry", async (req, res) => {
-  const { name, email, message } = req.body;
+  const { email, message } = req.body;
   
-  if (!name || !email || !message) {
-    return res.status(400).json({ success: false, message: "الاسم والبريد والرسالة مطلوبان" });
+  if (!email || !message) {
+    return res.status(400).json({ success: false, message: "البريد والرسالة مطلوبان" });
   }
 
   try {
@@ -182,7 +164,6 @@ app.post("/api/inquiry", async (req, res) => {
           html: `
             <div dir="rtl">
               <h2 style="color: #ffa726;">استفسار جديد</h2>
-              <p><strong>الاسم:</strong> ${name}</p>
               <p><strong>البريد:</strong> ${email}</p>
               <p><strong>الرسالة:</strong></p>
               <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
@@ -199,7 +180,6 @@ app.post("/api/inquiry", async (req, res) => {
   }
 });
 
-// إضافة اقتراح جديد
 app.post("/api/suggestion", async (req, res) => {
   const { name, contact, message } = req.body;
   
@@ -238,7 +218,7 @@ app.post("/api/suggestion", async (req, res) => {
   }
 });
 
-// تسجيل دخول الادمن
+// Admin Routes
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
@@ -248,7 +228,6 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
 });
 
-// تسجيل خروج الادمن
 app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -258,7 +237,6 @@ app.post("/api/admin/logout", (req, res) => {
   });
 });
 
-// جلب جميع الطلبات
 app.get("/api/admin/orders", (req, res) => {
   if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
   
@@ -271,12 +249,169 @@ app.get("/api/admin/orders", (req, res) => {
   });
 });
 
-// جلب جميع الاستفسارات
 app.get("/api/admin/inquiries", (req, res) => {
   if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
   
   db.all("SELECT * FROM inquiries ORDER BY created_at DESC", (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+    }
+    res.json({ success: true, data: rows });
+  });
+});
 
-         app.listen(PORT, () => {
+app.get("/api/admin/suggestions", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  db.all("SELECT * FROM suggestions ORDER BY created_at DESC", (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
+    }
+    res.json({ success: true, data: rows });
+  });
+});
+
+app.post("/api/admin/update-status", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  const { id, status } = req.body;
+  if (!id || !status) {
+    return res.status(400).json({ success: false, message: "معرّف الطلب والحالة مطلوبان" });
+  }
+
+  db.run(
+    "UPDATE orders SET status = ? WHERE id = ?",
+    [status, id],
+    function(err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete("/api/admin/delete-order", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ success: false, message: "معرّف الطلب مطلوب" });
+  }
+
+  db.run("DELETE FROM orders WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.delete("/api/admin/delete-inquiry", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ success: false, message: "معرّف الاستفسار مطلوب" });
+  }
+
+  db.run("DELETE FROM inquiries WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.delete("/api/admin/delete-suggestion", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ success: false, message: "معرّف الاقتراح مطلوب" });
+  }
+
+  db.run("DELETE FROM suggestions WHERE id = ?", [id], function(err) {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.post("/api/admin/reply-inquiry", async (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+
+  const { inquiryId, email, message, reply } = req.body;
+  if (!inquiryId || !email || !message || !reply) {
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "رد على استفسارك",
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #ffa726;">شكراً لتواصلك معنا</h2>
+          <p><strong>استفسارك:</strong></p>
+          <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
+          <h3 style="color: #ffa726;">رد الفريق:</h3>
+          <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #2196F3;">${reply}</p>
+          <hr>
+          <p style="text-align: center; color: #777;">مع تحيات فريق الدعم</p>
+        </div>
+      `
+    });
+
+    db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error sending reply:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال الرد" });
+  }
+});
+
+app.post("/api/admin/send-message", async (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+
+  const { email, subject, message } = req.body;
+  if (!email || !subject || !message) {
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: subject,
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #ffa726;">${subject}</h2>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; border-right: 3px solid #2196F3;">
+            ${message.replace(/\n/g, '<br>')}
+          </div>
+          <hr>
+          <p style="text-align: center; color: #777;">مع تحيات فريق الدعم</p>
+        </div>
+      `
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال الرسالة" });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
