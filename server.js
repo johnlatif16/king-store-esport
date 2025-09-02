@@ -1,4 +1,5 @@
-const express = require("express");
+// FileName: /server.js
+// FileContents: const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const session = require("express-session");
@@ -71,7 +72,9 @@ db.serialize(() => {
     totalAmount TEXT,
     transactionId TEXT,
     screenshot TEXT,
-    status TEXT DEFAULT 'لم يتم الدفع'
+    status TEXT DEFAULT 'لم يتم الدفع',
+    payerPhone TEXT,  -- إضافة حقل جديد لرقم المحول
+    paymentMethod TEXT  -- إضافة حقل جديد لطريقة الدفع
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
@@ -118,9 +121,9 @@ app.get("/dashboard", (req, res) => {
 
 // API Routes
 app.post("/api/order", upload.single('screenshot'), (req, res) => {
-  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, payerPhone, paymentMethod } = req.body;
   
-  if (!name || !playerId || !email || !transactionId || !totalAmount || (!ucAmount && !bundle)) {
+  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle) || !payerPhone || !paymentMethod) {
     return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
@@ -128,9 +131,9 @@ app.post("/api/order", upload.single('screenshot'), (req, res) => {
   const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
   
   db.run(
-    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot],
+    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot, payerPhone, paymentMethod) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot, payerPhone, paymentMethod],
     function(err) {
       if (err) {
         console.error(err);
