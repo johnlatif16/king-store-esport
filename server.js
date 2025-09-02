@@ -7,7 +7,6 @@ const nodemailer = require("nodemailer");
 const path = require("path");
 const multer = require('multer');
 const fs = require('fs');
-const fetch = require('node-fetch'); // إضافة مكتبة node-fetch لإشعارات Telegram
 require('dotenv').config();
 
 const app = express();
@@ -16,7 +15,7 @@ const app = express();
 const db = new sqlite3.Database("./data.db", sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
     console.error("Error opening database:", err.message);
-    process.exit(1); // إنهاء العملية إذا فشل الاتصال بقاعدة البيانات
+    process.exit(1);
   }
   console.log("Connected to SQLite database");
 });
@@ -28,171 +27,82 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); // لخدمة الملفات الثابتة مثل HTML, CSS, JS, والصور المرفوعة
+app.use(express.static(path.join(__dirname, 'public')));
 
 // إعداد الجلسة
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'default-secret-key-for-session', // استخدم مفتاح سري قوي من .env
+  secret: process.env.SESSION_SECRET || 'default-secret-key', // تم التحديث لاستخدام SESSION_SECRET من .env
   resave: false,
   saveUninitialized: true,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production', // استخدم secure: true في الإنتاج (HTTPS)
+    secure: false,
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // صلاحية الجلسة ليوم واحد
-    sameSite: 'lax' // حماية CSRF
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax'
   }
 }));
 
 // إنشاء مجلد uploads إذا لم يكن موجوداً
-const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  console.log(`Created uploads directory at: ${UPLOADS_DIR}`);
+if (!fs.existsSync('public/uploads')) {
+  fs.mkdirSync('public/uploads', { recursive: true });
 }
 
 // إعداد multer لرفع الملفات
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
+    cb(null, 'public/uploads/');
   },
   filename: (req, file, cb) => {
-    // توليد اسم ملف فريد لتجنب التعارضات
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+    cb(null, Date.now() + path.extname(file.originalname));
   }
 });
+const upload = multer({ storage });
 
-// فلتر لملفات الصور فقط
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'), false);
-  }
-};
-
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // حد أقصى لحجم الملف 5MB
-  fileFilter: fileFilter
-});
-
-// إنشاء الجداول في قاعدة البيانات
+// إنشاء الجداول
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    playerId TEXT NOT NULL,
-    email TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'UC' or 'Bundle'
+    name TEXT,
+    playerId TEXT,
+    email TEXT,
+    type TEXT,
     ucAmount TEXT,
     bundle TEXT,
-    totalAmount TEXT NOT NULL,
-    transactionId TEXT NOT NULL,
-    screenshot TEXT, -- مسار الصورة المرفوعة
-    status TEXT DEFAULT 'لم يتم الدفع', -- 'لم يتم الدفع', 'تم الدفع'
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) console.error("Error creating orders table:", err.message);
-  });
+    totalAmount TEXT,
+    transactionId TEXT,
+    screenshot TEXT,
+    status TEXT DEFAULT 'لم يتم الدفع',
+    payerPhone TEXT,  -- إضافة حقل جديد لرقم المحول
+    paymentMethod TEXT  -- إضافة حقل جديد لطريقة الدفع
+  )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS inquiries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    message TEXT NOT NULL,
-    status TEXT DEFAULT 'قيد الانتظار', -- 'قيد الانتظار', 'تم الرد'
+    email TEXT,
+    message TEXT,
+    status TEXT DEFAULT 'قيد الانتظار',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) console.error("Error creating inquiries table:", err.message);
-  });
+  )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS suggestions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    contact TEXT NOT NULL,
-    message TEXT NOT NULL,
+    name TEXT,
+    contact TEXT,
+    message TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) console.error("Error creating suggestions table:", err.message);
-  });
-
-  // إضافة جدول للمستخدمين الإداريين (للتسجيل لمرة واحدة)
-  db.run(`CREATE TABLE IF NOT EXISTS admins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL -- في تطبيق حقيقي، يجب تخزين كلمات المرور مجزأة (hashed)
-  )`, (err) => {
-    if (err) console.error("Error creating admins table:", err.message);
-    // يمكنك إضافة مستخدم إداري افتراضي هنا إذا لم يكن موجودًا
-    // db.get("SELECT COUNT(*) AS count FROM admins", (err, row) => {
-    //   if (err) {
-    //     console.error("Error checking admins table:", err.message);
-    //     return;
-    //   }
-    //   if (row.count === 0) {
-    //     // قم بتغيير 'admin_user' و 'admin_pass' إلى قيم آمنة
-    //     db.run("INSERT INTO admins (username, password) VALUES (?, ?)", [process.env.ADMIN_USER, process.env.ADMIN_PASS], (err) => {
-    //       if (err) console.error("Error inserting default admin:", err.message);
-    //       else console.log("Default admin user created.");
-    //     });
-    //   }
-    // });
-  });
+  )`);
 });
 
-// إعداد البريد الإلكتروني (Nodemailer)
+// إعداد البريد الإلكتروني
 const transporter = nodemailer.createTransport({
-  service: process.env.SMTP_SERVICE || 'gmail', // استخدام SMTP_SERVICE من .env
+  service: 'gmail',
   auth: {
-    user: process.env.SMTP_USER, 
-    pass: process.env.SMTP_PASS, 
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
-// دالة لإرسال إشعار Telegram
-async function sendTelegramNotification(message) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!botToken || !chatId) {
-    console.warn("Telegram bot token or chat ID is not set. Skipping Telegram notification.");
-    return;
-  }
-
-  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'HTML' // للسماح بتنسيق HTML في الرسالة
-      })
-    });
-    const data = await response.json();
-    if (!data.ok) {
-      console.error("Failed to send Telegram message:", data.description);
-    } else {
-      console.log("Telegram notification sent successfully.");
-    }
-  } catch (error) {
-    console.error("Error sending Telegram notification:", error);
-  }
-}
-
-
-// Middleware للتحقق من صلاحيات المسؤول
-const isAuthenticatedAdmin = (req, res, next) => {
-  if (req.session.admin) {
-    next(); // المستخدم مسؤول، تابع للطلب
-  } else {
-    res.redirect('/login'); // إعادة توجيه إلى صفحة تسجيل الدخول إذا لم يكن مسؤولاً
-  }
-};
-
-// --------------------------------------------------------------------
 // Routes لخدمة صفحات HTML
-// --------------------------------------------------------------------
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -201,125 +111,44 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get("/dashboard", isAuthenticatedAdmin, (req, res) => {
+app.get("/dashboard", (req, res) => {
+  if (!req.session.admin) {
+    return res.redirect('/login');
+  }
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-app.get("/pay.html", (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'pay.html'));
-});
-
-// --------------------------------------------------------------------
-// API Routes للواجهة الأمامية (العملاء)
-// --------------------------------------------------------------------
-
-// معالجة طلبات الشراء (الشدات/الحزم)
+// API Routes
 app.post("/api/order", upload.single('screenshot'), (req, res) => {
-  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId } = req.body;
+  const { name, playerId, email, ucAmount, bundle, totalAmount, transactionId, payerPhone, paymentMethod } = req.body;
   
-  // التحقق من وجود جميع الحقول المطلوبة
-  if (!name || !playerId || !email || !transactionId || !totalAmount || (!ucAmount && !bundle)) {
-    // حذف الملف المرفوع إذا كانت هناك حقول مفقودة
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Error deleting uploaded file:", err);
-      });
-    }
-    return res.status(400).json({ success: false, message: "جميع الحقول المطلوبة غير مكتملة." });
-  }
-
-  // التحقق من أن أحد ucAmount أو bundle فقط موجود
-  if (ucAmount && bundle) {
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Error deleting uploaded file:", err);
-      });
-    }
-    return res.status(400).json({ success: false, message: "لا يمكن اختيار شدات وحزمة ازدهار معاً." });
+  // تم تعديل التحقق من الحقول المطلوبة
+  if (!name || !playerId || !email || !totalAmount || (!ucAmount && !bundle) || !transactionId || !payerPhone || !paymentMethod) {
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   const type = ucAmount ? "UC" : "Bundle";
-  const screenshotPath = req.file ? `/uploads/${req.file.filename}` : null;
+  const screenshot = req.file ? `/uploads/${req.file.filename}` : null;
   
   db.run(
-    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, playerId, email, type, ucAmount || null, bundle || null, totalAmount, transactionId, screenshotPath],
+    `INSERT INTO orders (name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot, payerPhone, paymentMethod) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, playerId, email, type, ucAmount, bundle, totalAmount, transactionId, screenshot, payerPhone, paymentMethod],
     function(err) {
       if (err) {
-        console.error("Error inserting order into database:", err.message);
-        // حذف الملف المرفوع إذا فشل إدخال قاعدة البيانات
-        if (req.file) {
-          fs.unlink(req.file.path, (unlinkErr) => {
-            if (unlinkErr) console.error("Error deleting uploaded file after DB error:", unlinkErr);
-          });
-        }
-        return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حفظ الطلب." });
+        console.error(err);
+        return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ" });
       }
-      const orderId = this.lastID;
-
-      // إرسال إشعار بالبريد الإلكتروني للمسؤول
-      const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
-      if (notificationEmail) {
-        transporter.sendMail({
-          from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
-          to: notificationEmail,
-          subject: `طلب جديد #${orderId} - ${name}`,
-          html: `
-            <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
-              <h2 style="color: #ff7a00;">طلب جديد</h2>
-              <p><strong>رقم الطلب:</strong> ${orderId}</p>
-              <p><strong>العميل:</strong> ${name} (${email})</p>
-              <p><strong>ID اللاعب:</strong> ${playerId}</p>
-              <p><strong>النوع:</strong> ${type} (${ucAmount || bundle})</p>
-              <p><strong>المبلغ الإجمالي:</strong> ${totalAmount}</p>
-              <p><strong>رقم التحويل:</strong> ${transactionId}</p>
-              ${screenshotPath ? `<p><strong>إثبات الدفع:</strong> <a href="https://king-store-esport-production.up.railway.app${screenshotPath}">عرض الصورة</a></p>` : ''}
-              <p>يرجى مراجعة الطلب في لوحة التحكم.</p>
-            </div>
-          `,
-        }).catch(mailError => console.error("Error sending order notification email:", mailError));
-      }
-
-      // إرسال إشعار Telegram
-      const telegramMessage = `<b>طلب جديد!</b>\n\n` +
-                              `<b>رقم الطلب:</b> ${orderId}\n` +
-                              `<b>العميل:</b> ${name}\n` +
-                              `<b>ID اللاعب:</b> ${playerId}\n` +
-                              `<b>النوع:</b> ${type} (${ucAmount || bundle})\n` +
-                              `<b>المبلغ:</b> ${totalAmount}\n` +
-                              `<b>رقم التحويل:</b> ${transactionId}\n` +
-                              `${screenshotPath ? `<b>إثبات الدفع:</b> <a href="https://king-store-esport-production.up.railway.app${screenshotPath}">عرض الصورة</a>\n` : ''}` +
-                              `\nيرجى مراجعة لوحة التحكم.`;
-      sendTelegramNotification(telegramMessage);
-
-      res.status(201).json({ success: true, message: "تم إرسال الطلب بنجاح.", orderId: orderId });
+      res.json({ success: true, id: this.lastID });
     }
   );
 });
 
-// جلب تفاصيل طلب معين (لصفحة pay.html)
-app.get("/api/order/:orderId", (req, res) => {
-  const orderId = req.params.orderId;
-  db.get("SELECT * FROM orders WHERE id = ?", [orderId], (err, row) => {
-    if (err) {
-      console.error("Error fetching order details:", err.message);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات." });
-    }
-    if (!row) {
-      return res.status(404).json({ success: false, message: "الطلب غير موجود." });
-    }
-    res.json({ success: true, data: row });
-  });
-});
-
-
-// معالجة الاستفسارات
 app.post("/api/inquiry", async (req, res) => {
-  const { email, message } = req.body;
+  const { name, email, message } = req.body; // تم إضافة name هنا
   
-  if (!email || !message) {
-    return res.status(400).json({ success: false, message: "البريد الإلكتروني والرسالة مطلوبان." });
+  if (!name || !email || !message) { // تم تعديل التحقق
+    return res.status(400).json({ success: false, message: "الاسم والبريد والرسالة مطلوبان" });
   }
 
   try {
@@ -327,52 +156,37 @@ app.post("/api/inquiry", async (req, res) => {
       "INSERT INTO inquiries (email, message) VALUES (?, ?)",
       [email, message],
       async function(err) {
-        if (err) {
-          console.error("Error inserting inquiry into database:", err.message);
-          return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حفظ الاستفسار." });
-        }
+        if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
-        // إرسال إشعار بالبريد الإلكتروني للمسؤول
-        const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
-        if (notificationEmail) {
-          transporter.sendMail({
-            from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
-            to: notificationEmail, // إرسال الإشعار إلى بريد المسؤول
-            subject: "استفسار جديد من العميل",
-            html: `
-              <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
-                <h2 style="color: #ff7a00;">استفسار جديد</h2>
-                <p><strong>البريد الإلكتروني:</strong> ${email}</p>
-                <p><strong>الرسالة:</strong></p>
-                <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ff7a00; border-radius: 5px;">${message}</p>
-                <p>يرجى الرد على هذا الاستفسار في أقرب وقت ممكن من لوحة التحكم.</p>
-              </div>
-            `,
-          }).catch(mailError => console.error("Error sending inquiry notification email:", mailError));
-        }
-
-        // إرسال إشعار Telegram
-        const telegramMessage = `<b>استفسار جديد!</b>\n\n` +
-                                `<b>البريد الإلكتروني:</b> ${email}\n` +
-                                `<b>الرسالة:</b> ${message}\n` +
-                                `\nيرجى مراجعة لوحة التحكم.`;
-        sendTelegramNotification(telegramMessage);
+        await transporter.sendMail({
+          from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
+          to: process.env.SMTP_USER,
+          subject: "استفسار جديد من العميل",
+          html: `
+            <div dir="rtl">
+              <h2 style="color: #ffa726;">استفسار جديد</h2>
+              <p><strong>الاسم:</strong> ${name}</p>
+              <p><strong>البريد:</strong> ${email}</p>
+              <p><strong>الرسالة:</strong></p>
+              <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
+            </div>
+          `,
+        });
         
-        res.status(201).json({ success: true, message: "تم إرسال استفسارك بنجاح." });
+        res.json({ success: true });
       }
     );
   } catch (error) {
-    console.error("Unhandled error in inquiry API:", error);
-    res.status(500).json({ success: false, message: "حدث خطأ غير متوقع." });
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال البريد الإلكتروني" });
   }
 });
 
-// معالجة الاقتراحات
 app.post("/api/suggestion", async (req, res) => {
   const { name, contact, message } = req.body;
   
   if (!name || !contact || !message) {
-    return res.status(400).json({ success: false, message: "جميع حقول الاقتراح مطلوبة." });
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   try {
@@ -380,117 +194,93 @@ app.post("/api/suggestion", async (req, res) => {
       "INSERT INTO suggestions (name, contact, message) VALUES (?, ?, ?)",
       [name, contact, message],
       async function(err) {
-        if (err) {
-          console.error("Error inserting suggestion into database:", err.message);
-          return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حفظ الاقتراح." });
-        }
+        if (err) return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
         
-        // إرسال إشعار بالبريد الإلكتروني للمسؤول
-        const notificationEmail = process.env.NOTIFICATION_EMAIL || process.env.SMTP_USER;
-        if (notificationEmail) {
-          transporter.sendMail({
-            from: `"متجر King Esports" <${process.env.SMTP_USER}>`,
-            to: notificationEmail, // إرسال الإشعار إلى بريد المسؤول
-            subject: "اقتراح جديد للموقع",
-            html: `
-              <div dir="rtl" style="font-family: 'Tajawal', sans-serif;">
-                <h2 style="color: #ff7a00;">اقتراح جديد</h2>
-                <p><strong>الاسم:</strong> ${name}</p>
-                <p><strong>طريقة التواصل:</strong> ${contact}</p>
-                <p><strong>الاقتراح:</strong></p>
-                <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ff7a00; border-radius: 5px;">${message}</p>
-              </div>
-            `,
-          }).catch(mailError => console.error("Error sending suggestion notification email:", mailError));
-        }
-
-        // إرسال إشعار Telegram
-        const telegramMessage = `<b>اقتراح جديد!</b>\n\n` +
-                                `<b>الاسم:</b> ${name}\n` +
-                                `<b>التواصل:</b> ${contact}\n` +
-                                `<b>الاقتراح:</b> ${message}\n` +
-                                `\nيرجى مراجعة لوحة التحكم.`;
-        sendTelegramNotification(telegramMessage);
+        await transporter.sendMail({
+          from: `"اقتراح جديد" <${process.env.SMTP_USER}>`,
+          to: process.env.SMTP_USER,
+          subject: "اقتراح جديد للموقع",
+          html: `
+            <div dir="rtl">
+              <h2 style="color: #ffa726;">اقتراح جديد</h2>
+              <p><strong>الاسم:</strong> ${name}</p>
+              <p><strong>طريقة التواصل:</strong> ${contact}</p>
+              <p><strong>الاقتراح:</strong></p>
+              <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
+            </div>
+          `,
+        });
         
-        res.status(201).json({ success: true, message: "تم إرسال اقتراحك بنجاح." });
+        res.json({ success: true });
       }
     );
   } catch (error) {
-    console.error("Unhandled error in suggestion API:", error);
-    res.status(500).json({ success: false, message: "حدث خطأ غير متوقع." });
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال الاقتراح" });
   }
 });
 
-// --------------------------------------------------------------------
-// Admin Routes (تتطلب تسجيل دخول المسؤول)
-// --------------------------------------------------------------------
-
-// تسجيل دخول المسؤول
+// Admin Routes
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: "اسم المستخدم وكلمة المرور مطلوبان." });
-  }
-
-  // في تطبيق حقيقي، يجب التحقق من كلمة المرور المجزأة (hashed password)
-  // هنا نستخدم مقارنة مباشرة لأغراض التوضيح
   if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-    req.session.admin = true; // تعيين الجلسة للمسؤول
-    return res.json({ success: true, message: "تم تسجيل الدخول بنجاح." });
+    req.session.admin = true;
+    return res.json({ success: true });
   }
-  res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة.' });
+  res.status(401).json({ success: false, message: 'بيانات الدخول غير صحيحة' });
 });
 
-// تسجيل خروج المسؤول
-app.post("/api/admin/logout", isAuthenticatedAdmin, (req, res) => {
+app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error("Error destroying session:", err);
-      return res.status(500).json({ success: false, message: "فشل تسجيل الخروج." });
+      return res.status(500).json({ success: false });
     }
-    res.json({ success: true, message: "تم تسجيل الخروج بنجاح." });
+    res.json({ success: true });
   });
 });
 
-// جلب جميع الطلبات
-app.get("/api/admin/orders", isAuthenticatedAdmin, (req, res) => {
-  db.all("SELECT * FROM orders ORDER BY created_at DESC", (err, rows) => {
+app.get("/api/admin/orders", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
+  db.all("SELECT * FROM orders ORDER BY id DESC", (err, rows) => {
     if (err) {
-      console.error("Error fetching orders:", err.message);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات أثناء جلب الطلبات." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
     }
     res.json({ success: true, data: rows });
   });
 });
 
-// جلب جميع الاستفسارات
-app.get("/api/admin/inquiries", isAuthenticatedAdmin, (req, res) => {
+app.get("/api/admin/inquiries", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   db.all("SELECT * FROM inquiries ORDER BY created_at DESC", (err, rows) => {
     if (err) {
-      console.error("Error fetching inquiries:", err.message);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات أثناء جلب الاستفسارات." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
     }
     res.json({ success: true, data: rows });
   });
 });
 
-// جلب جميع الاقتراحات
-app.get("/api/admin/suggestions", isAuthenticatedAdmin, (req, res) => {
+app.get("/api/admin/suggestions", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   db.all("SELECT * FROM suggestions ORDER BY created_at DESC", (err, rows) => {
     if (err) {
-      console.error("Error fetching suggestions:", err.message);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات أثناء جلب الاقتراحات." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات" });
     }
     res.json({ success: true, data: rows });
   });
 });
 
-// تحديث حالة الطلب
-app.post("/api/admin/update-status", isAuthenticatedAdmin, (req, res) => {
+app.post("/api/admin/update-status", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   const { id, status } = req.body;
   if (!id || !status) {
-    return res.status(400).json({ success: false, message: "معرّف الطلب والحالة مطلوبان." });
+    return res.status(400).json({ success: false, message: "معرّف الطلب والحالة مطلوبان" });
   }
 
   db.run(
@@ -498,182 +288,132 @@ app.post("/api/admin/update-status", isAuthenticatedAdmin, (req, res) => {
     [status, id],
     function(err) {
       if (err) {
-        console.error("Error updating order status:", err.message);
-        return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء تحديث حالة الطلب." });
+        console.error(err);
+        return res.status(500).json({ success: false, message: "حدث خطأ أثناء التحديث" });
       }
-      if (this.changes === 0) {
-        return res.status(404).json({ success: false, message: "الطلب غير موجود." });
-      }
-      res.json({ success: true, message: "تم تحديث حالة الطلب بنجاح." });
+      res.json({ success: true });
     }
   );
 });
 
-// حذف الطلب
-app.delete("/api/admin/delete-order", isAuthenticatedAdmin, (req, res) => {
+app.delete("/api/admin/delete-order", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   const { id } = req.body;
   if (!id) {
-    return res.status(400).json({ success: false, message: "معرّف الطلب مطلوب." });
+    return res.status(400).json({ success: false, message: "معرّف الطلب مطلوب" });
   }
 
-  db.get("SELECT screenshot FROM orders WHERE id = ?", [id], (err, row) => {
+  db.run("DELETE FROM orders WHERE id = ?", [id], function(err) {
     if (err) {
-      console.error("Error fetching screenshot path for deletion:", err.message);
-      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
     }
-    if (row && row.screenshot) {
-      const filePath = path.join(__dirname, 'public', row.screenshot);
-      fs.unlink(filePath, (unlinkErr) => {
-        if (unlinkErr) console.error("Error deleting screenshot file:", unlinkErr);
-      });
-    }
-
-    db.run("DELETE FROM orders WHERE id = ?", [id], function(err) {
-      if (err) {
-        console.error("Error deleting order:", err.message);
-        return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حذف الطلب." });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ success: false, message: "الطلب غير موجود." });
-      }
-      res.json({ success: true, message: "تم حذف الطلب بنجاح." });
-    });
+    res.json({ success: true });
   });
 });
 
-// حذف الاستفسار
-app.delete("/api/admin/delete-inquiry", isAuthenticatedAdmin, (req, res) => {
+app.delete("/api/admin/delete-inquiry", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   const { id } = req.body;
   if (!id) {
-    return res.status(400).json({ success: false, message: "معرّف الاستفسار مطلوب." });
+    return res.status(400).json({ success: false, message: "معرّف الاستفسار مطلوب" });
   }
 
   db.run("DELETE FROM inquiries WHERE id = ?", [id], function(err) {
     if (err) {
-      console.error("Error deleting inquiry:", err.message);
-      return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حذف الاستفسار." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
     }
-    if (this.changes === 0) {
-      return res.status(404).json({ success: false, message: "الاستفسار غير موجود." });
-    }
-    res.json({ success: true, message: "تم حذف الاستفسار بنجاح." });
+    res.json({ success: true });
   });
 });
 
-// حذف الاقتراح
-app.delete("/api/admin/delete-suggestion", isAuthenticatedAdmin, (req, res) => {
+app.delete("/api/admin/delete-suggestion", (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+  
   const { id } = req.body;
   if (!id) {
-    return res.status(400).json({ success: false, message: "معرّف الاقتراح مطلوب." });
+    return res.status(400).json({ success: false, message: "معرّف الاقتراح مطلوب" });
   }
 
   db.run("DELETE FROM suggestions WHERE id = ?", [id], function(err) {
     if (err) {
-      console.error("Error deleting suggestion:", err.message);
-      return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حذف الاقتراح." });
+      console.error(err);
+      return res.status(500).json({ success: false, message: "حدث خطأ أثناء الحذف" });
     }
-    if (this.changes === 0) {
-      return res.status(404).json({ success: false, message: "الاقتراح غير موجود." });
-    }
-    res.json({ success: true, message: "تم حذف الاقتراح بنجاح." });
+    res.json({ success: true });
   });
 });
 
-// الرد على استفسار وإرسال بريد إلكتروني للعميل
-app.post("/api/admin/reply-inquiry", isAuthenticatedAdmin, async (req, res) => {
+app.post("/api/admin/reply-inquiry", async (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+
   const { inquiryId, email, message, reply } = req.body;
   if (!inquiryId || !email || !message || !reply) {
-    return res.status(400).json({ success: false, message: "جميع حقول الرد مطلوبة." });
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   try {
     await transporter.sendMail({
-      from: `"فريق دعم King Esports" <${process.env.SMTP_USER}>`,
+      from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "رد على استفسارك من King Esports",
+      subject: "رد على استفسارك",
       html: `
-        <div dir="rtl" style="font-family: 'Tajawal', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #ff7a00; text-align: center;">شكراً لتواصلك معنا</h2>
-          <p style="font-size: 1.1rem;">مرحباً بك،</p>
-          <p>لقد تلقينا استفسارك ويسعدنا الرد عليه:</p>
-          
-          <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #00b4d8; margin-bottom: 20px; border-radius: 5px;">
-            <p style="font-weight: bold; color: #333;">استفسارك الأصلي:</p>
-            <p style="color: #555;">${message}</p>
-          </div>
-
-          <div style="background: #e6f7ff; padding: 15px; border-left: 4px solid #2196F3; border-radius: 5px;">
-            <p style="font-weight: bold; color: #333;">رد فريق الدعم:</p>
-            <p style="color: #555;">${reply}</p>
-          </div>
-          
-          <p style="margin-top: 20px;">إذا كان لديك أي أسئلة أخرى، فلا تتردد في التواصل معنا.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
-          <p style="text-align: center; color: #777; font-size: 0.9rem;">مع خالص التحيات،<br>فريق دعم King Esports</p>
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #ffa726;">شكراً لتواصلك معنا</h2>
+          <p><strong>استفسارك:</strong></p>
+          <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #ffa726;">${message}</p>
+          <h3 style="color: #ffa726;">رد الفريق:</h3>
+          <p style="background: #f5f5f5; padding: 10px; border-right: 3px solid #2196F3;">${reply}</p>
+          <hr>
+          <p style="text-align: center; color: #777;">مع تحيات فريق الدعم</p>
         </div>
       `
-    }).catch(mailError => console.error("Error sending reply email:", mailError));
-
-    db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId], function(err) {
-      if (err) {
-        console.error("Error updating inquiry status after reply:", err.message);
-        // لا نرجع خطأ 500 هنا لأن البريد تم إرساله بنجاح
-      }
     });
-    res.json({ success: true, message: "تم إرسال الرد وتحديث حالة الاستفسار بنجاح." });
+
+    db.run("UPDATE inquiries SET status = 'تم الرد' WHERE id = ?", [inquiryId]);
+    res.json({ success: true });
   } catch (error) {
-    console.error("Error sending reply email:", error);
-    res.status(500).json({ success: false, message: "فشل إرسال الرد عبر البريد الإلكتروني." });
+    console.error("Error sending reply:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال الرد" });
   }
 });
 
-// إرسال رسالة مباشرة إلى عميل
-app.post("/api/admin/send-message", isAuthenticatedAdmin, async (req, res) => {
+app.post("/api/admin/send-message", async (req, res) => {
+  if (!req.session.admin) return res.status(403).json({ success: false, message: "غير مصرح" });
+
   const { email, subject, message } = req.body;
   if (!email || !subject || !message) {
-    return res.status(400).json({ success: false, message: "جميع حقول الرسالة مطلوبة." });
+    return res.status(400).json({ success: false, message: "جميع الحقول مطلوبة" });
   }
 
   try {
     await transporter.sendMail({
-      from: `"King Esports" <${process.env.SMTP_USER}>`,
+      from: `"فريق الدعم" <${process.env.SMTP_USER}>`,
       to: email,
       subject: subject,
       html: `
-        <div dir="rtl" style="font-family: 'Tajawal', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
-          <h2 style="color: #ff7a00; text-align: center;">${subject}</h2>
-          <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #2196F3; border-radius: 5px; margin-top: 20px;">
-            <p style="color: #555; white-space: pre-wrap;">${message}</p>
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #ffa726;">${subject}</h2>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; border-right: 3px solid #2196F3;">
+            ${message.replace(/\n/g, '<br>')}
           </div>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
-          <p style="text-align: center; color: #777; font-size: 0.9rem;">مع خالص التحيات،<br>فريق King Esports</p>
+          <hr>
+          <p style="text-align: center; color: #777;">مع تحيات فريق الدعم</p>
         </div>
       `
-    }).catch(mailError => console.error("Error sending direct message email:", mailError));
+    });
 
-    res.json({ success: true, message: "تم إرسال الرسالة بنجاح." });
+    res.json({ success: true });
   } catch (error) {
-    console.error("Error sending direct message email:", error);
-    res.status(500).json({ success: false, message: "فشل إرسال الرسالة." });
+    console.error("Error sending message:", error);
+    res.status(500).json({ success: false, message: "فشل إرسال الرسالة" });
   }
 });
 
-// --------------------------------------------------------------------
-// بدء تشغيل الخادم
-// --------------------------------------------------------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Admin Dashboard: http://localhost:${PORT}/login`);
-});
-
-// إغلاق قاعدة البيانات عند إيقاف تشغيل التطبيق
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error("Error closing database:", err.message);
-    }
-    console.log("Database connection closed.");
-    process.exit(0);
-  });
 });
