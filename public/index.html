@@ -1329,8 +1329,26 @@
           
           <div class="form-group">
             <label for="transactionId">رقم التحويل</label>
-            <input type="text" id="transactionId" class="form-control" placeholder="رقم التليفون المحول منه" required>
+            <input type="text" id="transactionId" class="form-control" placeholder="رقم العملية أو رقم التليفون المحول منه" required>
           </div>
+
+          <!-- حقول جديدة: رقم التليفون المحول منه وطريقة الدفع -->
+          <div class="form-group">
+            <label for="payerPhone">رقم التليفون المحول منه</label>
+            <input type="text" id="payerPhone" class="form-control" placeholder="أدخل رقم التليفون المحول منه" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="paymentMethod">طريقة الدفع</label>
+            <select id="paymentMethod" class="form-control" required>
+                <option value="">اختر طريقة الدفع</option>
+                <option value="فودافون كاش">فودافون كاش</option>
+                <option value="اورانج ماني">اورانج ماني</option>
+                <option value="اتصالات كاش">اتصالات كاش</option>
+                <option value="وي باي">وي باي</option>
+            </select>
+          </div>
+          <!-- نهاية الحقول الجديدة -->
           
           <div class="form-group">
             <label for="totalAmount">المبلغ الإجمالي</label>
@@ -1699,6 +1717,9 @@
       formData.append('bundle', selectedBundle ? selectedBundle.dataset.value : "");
       formData.append('transactionId', document.getElementById('transactionId').value);
       formData.append('totalAmount', document.getElementById('totalAmount').value.replace(" ج.م", ""));
+      // إضافة الحقول الجديدة
+      formData.append('payerPhone', document.getElementById('payerPhone').value);
+      formData.append('paymentMethod', document.getElementById('paymentMethod').value);
       
       const screenshotInput = document.getElementById('paymentScreenshot');
       if (screenshotInput.files[0]) {
@@ -1724,7 +1745,7 @@
 
         if (result.success) {
           // بدلاً من alert، قم بإعادة التوجيه إلى صفحة الدفع
-          window.location.href = `pay.html?orderId=${result.orderId}`;
+          window.location.href = `pay.html?orderId=${result.id}`; // تم تعديل result.orderId إلى result.id
         } else {
           throw new Error(result.message || "حدث خطأ غير معروف");
         }
