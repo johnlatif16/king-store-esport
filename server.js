@@ -152,7 +152,7 @@ const isAuthenticatedAdmin = (req, res, next) => {
   if (req.session.admin) {
     next(); // المستخدم مسؤول، تابع للطلب
   } else {
-    res.status(403).json({ success: false, message: "غير مصرح لك بالوصول" });
+    res.redirect('/login'); // إعادة توجيه إلى صفحة تسجيل الدخول إذا لم يكن مسؤولاً
   }
 };
 
@@ -169,6 +169,10 @@ app.get("/login", (req, res) => {
 
 app.get("/dashboard", isAuthenticatedAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get("/pay.html", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pay.html'));
 });
 
 // --------------------------------------------------------------------
@@ -218,10 +222,27 @@ app.post("/api/order", upload.single('screenshot'), (req, res) => {
         }
         return res.status(500).json({ success: false, message: "حدث خطأ داخلي أثناء حفظ الطلب." });
       }
+      // بدلاً من إرسال JSON مباشرة، نقوم بإعادة توجيه إلى صفحة الدفع مع orderId
       res.status(201).json({ success: true, message: "تم إرسال الطلب بنجاح.", orderId: this.lastID });
     }
   );
 });
+
+// جلب تفاصيل طلب معين (لصفحة pay.html)
+app.get("/api/order/:orderId", (req, res) => {
+  const orderId = req.params.orderId;
+  db.get("SELECT * FROM orders WHERE id = ?", [orderId], (err, row) => {
+    if (err) {
+      console.error("Error fetching order details:", err.message);
+      return res.status(500).json({ success: false, message: "خطأ في قاعدة البيانات." });
+    }
+    if (!row) {
+      return res.status(404).json({ success: false, message: "الطلب غير موجود." });
+    }
+    res.json({ success: true, data: row });
+  });
+});
+
 
 // معالجة الاستفسارات
 app.post("/api/inquiry", async (req, res) => {
