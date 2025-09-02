@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -84,7 +83,7 @@ db.serialize(() => {
 
   // إضافة مستخدم مسؤول افتراضي إذا لم يكن موجود
   db.get("SELECT COUNT(*) as count FROM admins", (err, row) => {
-    if (row.count === 0) {
+    if (row && row.count === 0) {
       const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
       db.run("INSERT INTO admins (username, password) VALUES (?, ?)", 
         ['admin', defaultPassword]);
@@ -93,7 +92,7 @@ db.serialize(() => {
 });
 
 // تكوين nodemailer لإرسال البريد الإلكتروني
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransporter({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
@@ -492,6 +491,11 @@ app.post('/api/admin/send-message', async (req, res) => {
     console.error('خطأ في إرسال الرسالة:', error);
     res.status(500).json({ success: false, message: 'خطأ في إرسال الرسالة' });
   }
+});
+
+// معالجة الأخطاء - يجب أن يكون هذا في النهاية
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'المسار غير موجود' });
 });
 
 // بدء الخادم
