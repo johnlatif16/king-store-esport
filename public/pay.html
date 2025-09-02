@@ -73,6 +73,7 @@
       max-width: 500px;
       text-align: right;
       border: 1px solid rgba(255,255,255,0.15);
+      display: none;
     }
 
     .order-details h2 {
@@ -153,20 +154,21 @@
 
     .error-message {
       color: #f44336;
+      display: none;
     }
 
     /* Image Modal for full screen preview */
     .image-modal {
-      display: none; /* Hidden by default */
-      position: fixed; /* Stay in place */
-      z-index: 1000; /* Sit on top */
-      padding-top: 100px; /* Location of the box */
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      padding-top: 100px;
       left: 0;
       top: 0;
-      width: 100%; /* Full width */
-      height: 100%; /* Full height */
-      overflow: auto; /* Enable scroll if needed */
-      background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.9);
       justify-content: center;
       align-items: center;
     }
@@ -191,8 +193,8 @@
       color: #f1f1f1;
       font-size: 40px;
       font-weight: bold;
-      transition: 0.3s;
       cursor: pointer;
+      transition: 0.3s;
     }
 
     .close-image-modal:hover,
@@ -213,11 +215,11 @@
     <div class="loading-message" id="loadingMessage">
       <i class="fas fa-spinner fa-spin"></i> جاري تحميل تفاصيل الطلب...
     </div>
-    <div class="error-message" id="errorMessage" style="display: none;">
+    <div class="error-message" id="errorMessage">
       <i class="fas fa-exclamation-circle"></i> حدث خطأ أثناء تحميل تفاصيل الطلب.
     </div>
 
-    <div class="order-details" id="orderDetails" style="display: none;">
+    <div class="order-details" id="orderDetails">
       <h2>تفاصيل طلبك</h2>
       <div class="detail-item">
         <strong>رقم الطلب:</strong>
@@ -255,7 +257,7 @@
         <strong>حالة الطلب:</strong>
         <span id="statusDisplay" class="value"></span>
       </div>
-      <div class="detail-item">
+      <div class="detail-item" id="createdAtRow" style="display:none;">
         <strong>تاريخ الطلب:</strong>
         <span id="createdAtDisplay"></span>
       </div>
@@ -273,7 +275,7 @@
   <!-- Image Modal for full screen preview -->
   <div id="imageModal" class="image-modal">
     <span class="close-image-modal" onclick="closeImageModal()">&times;</span>
-    <img class="image-modal-content" id="modalImage">
+    <img class="image-modal-content" id="modalImage" alt="معاينة الصورة">
   </div>
 
   <script>
@@ -284,6 +286,7 @@
       const loadingMessage = document.getElementById('loadingMessage');
       const errorMessage = document.getElementById('errorMessage');
       const orderDetailsDiv = document.getElementById('orderDetails');
+      const createdAtRow = document.getElementById('createdAtRow');
 
       if (!orderId) {
         loadingMessage.style.display = 'none';
@@ -309,7 +312,10 @@
           document.getElementById('totalAmountDisplay').textContent = order.totalAmount + ' ج.م';
           document.getElementById('transactionIdDisplay').textContent = order.transactionId;
           document.getElementById('statusDisplay').textContent = order.status;
-          document.getElementById('createdAtDisplay').textContent = new Date(order.created_at).toLocaleString();
+          if(order.created_at){
+            createdAtRow.style.display = 'flex';
+            document.getElementById('createdAtDisplay').textContent = new Date(order.created_at).toLocaleString();
+          }
 
           if (order.screenshot) {
             const screenshotImg = document.getElementById('screenshotDisplay');
@@ -340,7 +346,7 @@
       document.getElementById('imageModal').classList.remove('show');
     }
 
-    // Close modal when clicking outside the image
+    // إغلاق المودال عند النقر خارج الصورة
     document.getElementById('imageModal').addEventListener('click', function(e) {
       if (e.target === this) {
         closeImageModal();
