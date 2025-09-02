@@ -1328,6 +1328,22 @@
           </div>
           
           <div class="form-group">
+            <label for="payerPhone">رقم الهاتف المحول منه</label>
+            <input type="text" id="payerPhone" class="form-control" placeholder="رقم الهاتف الذي تم التحويل منه" required>
+          </div>
+
+          <div class="form-group">
+            <label for="paymentMethod">طريقة الدفع</label>
+            <select id="paymentMethod" class="form-control" required>
+              <option value="">اختر طريقة الدفع</option>
+              <option value="vodafone_cash">فودافون كاش</option>
+              <option value="orange_money">اورانج ماني</option>
+              <option value="etisalat_cash">اتصالات كاش</option>
+              <option value="we_pay">وي pay</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
             <label for="totalAmount">المبلغ الإجمالي</label>
             <input type="text" id="totalAmount" class="form-control" placeholder="سيتم حسابه تلقائياً" readonly>
           </div>
@@ -1739,7 +1755,10 @@
         email: document.getElementById('email').value,
         ucAmount: selectedUC ? selectedUC.dataset.value : "",
         bundle: selectedBundle ? selectedBundle.dataset.value : "",
-        totalAmount: document.getElementById('totalAmount').value.replace(" ج.م", "")
+        totalAmount: document.getElementById('totalAmount').value.replace(" ج.م", ""),
+        transactionId: "يدوي-" + Date.now(), // إنشاء معرّف فريد
+        payerPhone: document.getElementById('payerPhone').value,
+        paymentMethod: document.getElementById('paymentMethod').value
       };
       
       const btn = e.target.querySelector('button');
