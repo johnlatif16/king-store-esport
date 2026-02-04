@@ -2,364 +2,1650 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard</title>
+  <title>لوحة التحكم - King STORE个ESPORTSツ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body{font-family:Arial;margin:0;background:#0f0f1a;color:#fff}
-    header{padding:16px;background:#1a1a2e;display:flex;justify-content:space-between;align-items:center}
-    .wrap{max-width:1200px;margin:0 auto;padding:20px}
-    .card{background:#1a1a2e;padding:16px;border-radius:12px;margin:15px 0}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #333;text-align:right;vertical-align:top}
-    button{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:700}
-    .btn{background:#ff7a00;color:#000}
-    .danger{background:#ff4d4f;color:#000}
-    .muted{color:#ccc}
-    img.thumb{width:70px;height:70px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid #333}
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:20px}
-    .modal.show{display:flex}
-    .modal img{max-width:95vw;max-height:90vh;border-radius:12px}
-    .err{color:#ff4d4f;white-space:pre-wrap}
-    .ok{color:#25D366}
-    input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;margin:8px 0}
+    :root {
+      --primary: #1a1a2e;
+      --secondary: #ff7a00;
+      --accent: #00b4d8;
+      --dark: #16213e;
+      --light: #f8f9fa;
+      --success: #25D366;
+      --danger: #ff4d4f;
+      --warning: #ffc107;
+      --info: #2196F3;
+      --border-radius: 12px;
+      --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .admin-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* الشريط الجانبي */
+    .sidebar {
+      width: 280px;
+      background: linear-gradient(135deg, var(--primary), var(--dark));
+      color: white;
+      padding: 25px 0;
+      box-shadow: 5px 0 20px rgba(0, 0, 0, 0.2);
+      position: fixed;
+      height: 100%;
+      z-index: 100;
+      transition: var(--transition);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-header {
+      text-align: center;
+      padding: 0 25px 25px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .sidebar-header img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255, 122, 0, 0.3);
+      margin-bottom: 15px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar-header h2 {
+      color: white;
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+      background: linear-gradient(to right, var(--secondary), #ff9e00);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-header p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 0 15px;
+    }
+
+    .nav-item {
+      margin-bottom: 8px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      border-radius: var(--border-radius);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-link::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to right, rgba(255, 122, 0, 0.2), transparent);
+      transition: var(--transition);
+    }
+
+    .nav-link:hover, .nav-link.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      transform: translateX(-5px);
+    }
+
+    .nav-link:hover::before, .nav-link.active::before {
+      right: 0;
+    }
+
+    .nav-link i {
+      margin-left: 12px;
+      font-size: 1.1rem;
+      width: 24px;
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .nav-link:hover i, .nav-link.active i {
+      color: var(--secondary);
+    }
+
+    .logout-btn {
+      display: flex;
+      align-items: center;
+      width: calc(100% - 30px);
+      margin: 25px 15px 0;
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: 'Tajawal', sans-serif;
+      font-size: 0.95rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logout-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to right, rgba(255, 77, 79, 0.2), transparent);
+      transition: var(--transition);
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .logout-btn:hover::before {
+      right: 0;
+    }
+
+    .logout-btn i {
+      margin-left: 10px;
+      transition: var(--transition);
+    }
+
+    .logout-btn:hover i {
+      color: var(--danger);
+    }
+
+    /* المحتوى الرئيسي */
+    .main-content {
+      flex: 1;
+      margin-right: 280px;
+      padding: 30px;
+      background-color: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .header h1 {
+      color: var(--primary);
+      font-size: 1.8rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 i {
+      color: var(--secondary);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 8px 15px;
+      border-radius: 50px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-info img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-left: 10px;
+      object-fit: cover;
+      border: 2px solid var(--secondary);
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* بطاقات الإحصائيات */
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 25px;
+      box-shadow: var(--box-shadow);
+      transition: var(--transition);
+      border-top: 4px solid var(--primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+
+    .stat-card.orders {
+      border-top-color: var(--info);
+    }
+
+    .stat-card.inquiries {
+      border-top-color: var(--warning);
+    }
+
+    .stat-card.suggestions {
+      border-top-color: var(--success);
+    }
+
+    .stat-card h3 {
+      font-size: 1.05rem;
+      color: #666;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+
+    .stat-card h3 i {
+      margin-left: 10px;
+      font-size: 1.3rem;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+
+    .stat-card .change {
+      font-size: 0.9rem;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .stat-card .change.positive {
+      color: var(--success);
+    }
+
+    .stat-card .change.negative {
+      color: var(--danger);
+    }
+
+    /* الأقسام الرئيسية */
+    .section {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: var(--box-shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(to bottom, var(--secondary), var(--accent));
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .section-header h2 {
+      color: var(--primary);
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-header h2 i {
+      color: var(--secondary);
+    }
+
+    .section-header .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Tajawal', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+      opacity: 0;
+      transition: var(--transition);
+      z-index: -1;
+    }
+
+    .btn:hover::before {
+      opacity: 1;
+    }
+
+    .btn i {
+      margin-left: 8px;
+      font-size: 1rem;
+    }
+
+    .btn-sm {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(to left, var(--primary), var(--dark));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(to left, var(--dark), var(--primary));
+      box-shadow: 0 5px 15px rgba(26, 26, 46, 0.3);
+    }
+
+    .btn-success {
+      background: linear-gradient(to left, var(--success), #1da851);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: linear-gradient(to left, #1da851, var(--success));
+      box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
+    }
+
+    .btn-danger {
+      background: linear-gradient(to left, var(--danger), #d32f2f);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(to left, #d32f2f, var(--danger));
+      box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+    }
+
+    .btn-warning {
+      background: linear-gradient(to left, var(--warning), #e68a00);
+      color: white;
+    }
+
+    .btn-warning:hover {
+      background: linear-gradient(to left, #e68a00, var(--warning));
+      box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+    }
+
+    .btn-info {
+      background: linear-gradient(to left, var(--info), #0b7dda);
+      color: white;
+    }
+
+    .btn-info:hover {
+      background: linear-gradient(to left, #0b7dda, var(--info));
+      box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid #ddd;
+      color: #666;
+    }
+
+    .btn-outline:hover {
+      background-color: #f5f5f5;
+      border-color: #ccc;
+    }
+
+    /* جدول البيانات */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .data-table th {
+      background-color: #f8f9fa;
+      color: #555;
+      font-weight: 700;
+      text-align: right;
+      padding: 14px 16px;
+      border-bottom: 2px solid #eee;
+    }
+
+    .data-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      color: #555;
+      transition: var(--transition);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .data-table tr:hover td {
+      background-color: #f9f9f9;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-success {
+      background-color: rgba(37, 211, 102, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(37, 211, 102, 0.2);
+    }
+
+    .badge-warning {
+      background-color: rgba(255, 193, 7, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(255, 193, 7, 0.2);
+    }
+
+    .badge-danger {
+      background-color: rgba(255, 77, 79, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(255, 77, 79, 0.2);
+    }
+
+    .badge-info {
+      background-color: rgba(33, 150, 243, 0.1);
+      color: var(--info);
+      border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-left: 8px;
+    }
+
+    .status-paid .status-indicator {
+      background-color: var(--success);
+      box-shadow: 0 0 8px rgba(37, 211, 102, 0.5);
+    }
+
+    .status-pending .status-indicator {
+      background-color: var(--warning);
+      box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+    }
+
+    .status-replied .status-indicator {
+      background-color: var(--info);
+      box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
+    }
+
+    /* النماذج */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: 'Tajawal', sans-serif;
+      transition: var(--transition);
+      background-color: #f9f9f9;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.1);
+      background-color: white;
+    }
+
+    textarea.form-control {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    /* المودال */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+
+    .modal.show {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: var(--border-radius);
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      transform: translateY(-20px);
+      transition: transform 0.3s ease;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .modal.show .modal-content {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: var(--primary);
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-header h3 i {
+      color: var(--secondary);
+    }
+
+    .modal-header .close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: var(--transition);
+    }
+
+    .modal-header .close:hover {
+      background-color: #f5f5f5;
+      color: #666;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* معاينة الصورة */
+    .screenshot-preview {
+      max-width: 100px;
+      max-height: 100px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 1px solid #ddd;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .screenshot-preview:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      border-color: var(--accent);
+    }
+
+    .image-modal {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 1100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .image-modal.show {
+      display: flex;
+    }
+
+    .image-modal-content {
+      max-width: 90%;
+      max-height: 90%;
+      position: relative;
+    }
+
+    .image-modal-content img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .close-image-modal {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 2rem;
+      cursor: pointer;
+    }
+
+    /* التبويبات */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: var(--transition);
+      font-weight: 600;
+      color: #666;
+    }
+
+    .tab:hover {
+      color: var(--primary);
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--secondary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* رسائل الاستجابة */
+    .alert {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      animation: fadeIn 0.5s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .alert::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .alert i {
+      margin-left: 12px;
+      font-size: 1.3rem;
+    }
+
+    .alert-success {
+      background-color: rgba(37, 211, 102, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(37, 211, 102, 0.2);
+    }
+
+    .alert-success::before {
+      background-color: var(--success);
+    }
+
+    .alert-danger {
+      background-color: rgba(255, 77, 79, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(255, 77, 79, 0.2);
+    }
+
+    .alert-danger::before {
+      background-color: var(--danger);
+    }
+
+    .alert-info {
+      background-color: rgba(33, 150, 243, 0.1);
+      color: var(--info);
+      border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+
+    .alert-info::before {
+      background-color: var(--info);
+    }
+
+    /* تأثيرات الحركة */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* التكيف مع الشاشات الصغيرة */
+    @media (max-width: 992px) {
+      .sidebar {
+        width: 250px;
+        transform: translateX(-250px);
+      }
+      
+      .sidebar.show {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-right: 0;
+      }
+      
+      .menu-toggle {
+        display: block;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .stats-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .user-info {
+        margin-top: 0;
+      }
+      
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      
+      .section-header .actions {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+      
+      .data-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+
+    /* تأثيرات عند التركيز على الحقول */
+    .form-control:focus + i {
+      color: var(--accent) !important;
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    /* Spinner للتحميل */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
-<header>
-  <div>لوحة التحكم</div>
-  <div>
-    <button class="btn" onclick="reloadAll()">تحديث</button>
-    <button class="danger" onclick="logout()">خروج</button>
-  </div>
-</header>
-
-<div class="wrap">
-  <div class="card">
-    <h2>الطلبات</h2>
-    <div id="ordersMsg" class="muted"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>العميل</th>
-          <th>ID</th>
-          <th>النوع</th>
-          <th>المبلغ</th>
-          <th>الحالة</th>
-          <th>رقم التحويل</th>
-          <th>سكرين شوت</th>
-          <th>إجراءات</th>
-        </tr>
-      </thead>
-      <tbody id="ordersList"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>الاستفسارات</h2>
-    <div id="inquiriesMsg" class="muted"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>الاسم</th>
-          <th>البريد</th>
-          <th>التاريخ</th>
-          <th>الرسالة</th>
-          <th>الحالة</th>
-          <th>إجراءات</th>
-        </tr>
-      </thead>
-      <tbody id="inquiriesList"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>الاقتراحات</h2>
-    <div id="suggestionsMsg" class="muted"></div>
-    <table>
-      <thead>
-        <tr>
-          <th>الاسم</th>
-          <th>التواصل</th>
-          <th>التاريخ</th>
-          <th>الاقتراح</th>
-          <th>إجراءات</th>
-        </tr>
-      </thead>
-      <tbody id="suggestionsList"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>إرسال رسالة مباشرة</h2>
-    <input id="clientEmail" placeholder="Email العميل" />
-    <input id="emailSubject" placeholder="عنوان الرسالة" />
-    <textarea id="emailMessage" rows="5" placeholder="نص الرسالة"></textarea>
-    <button class="btn" onclick="sendDirectMessage()">إرسال</button>
-    <div id="sendMsg" class="muted"></div>
-  </div>
-</div>
-
-<div id="imgModal" class="modal" onclick="closeModal(event)">
-  <img id="modalImg" src="" alt="preview" />
-</div>
-
-<script>
-  async function safeFetchJson(url, options) {
-    const res = await fetch(url, options);
-    const text = await res.text();
-    let data = null;
-    try { data = JSON.parse(text); }
-    catch { throw new Error("الرد مش JSON:\n" + text.slice(0,120)); }
-    if (!res.ok) throw new Error(data?.message || ("HTTP " + res.status));
-    return data;
-  }
-
-  function openModal(src) {
-    document.getElementById("modalImg").src = src;
-    document.getElementById("imgModal").classList.add("show");
-  }
-  function closeModal(e) {
-    if (e.target.id === "imgModal") document.getElementById("imgModal").classList.remove("show");
-  }
-
-  async function loadOrders() {
-    const out = document.getElementById("ordersMsg");
-    const tbody = document.getElementById("ordersList");
-    out.textContent = "تحميل...";
-    tbody.innerHTML = "";
-
-    try {
-      const data = await safeFetchJson("/api/admin/orders", { credentials: "include" });
-      const orders = data.data || [];
-      out.innerHTML = `<span class="ok">عدد الطلبات: ${orders.length}</span>`;
-
-      if (!orders.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="muted">لا توجد طلبات</td></tr>`;
-        return;
-      }
-
-      for (const o of orders) {
-        const tr = document.createElement("tr");
-        const item = o.ucAmount ? o.ucAmount + " UC" : o.bundle;
-        const shot = o.screenshotUrl ? o.screenshotUrl : null;
-
-        tr.innerHTML = `
-          <td><b>${o.name}</b><div class="muted">${o.email}</div></td>
-          <td>${o.playerId}</td>
-          <td>${o.type}<div class="muted">${item || ""}</div></td>
-          <td>${o.totalAmount}</td>
-          <td>${o.status}</td>
-          <td>${o.transactionId || ""}</td>
-          <td>${shot ? `<img class="thumb" src="${shot}" onclick="openModal('${shot}')" />` : "لا يوجد"}</td>
-          <td>
-            <button class="btn" onclick="toggleStatus(${o.id}, '${o.status === "تم الدفع" ? "لم يتم الدفع" : "تم الدفع"}')">
-              ${o.status === "تم الدفع" ? "غير مدفوع" : "مدفوع"}
+  <div class="admin-container">
+    <!-- الشريط الجانبي -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="https://i.postimg.cc/W15J2BTn/Whats.jpg" alt="King STORE Logo">
+        <h2>King STORE个ESPORTSツ</h2>
+        <p>لوحة تحكم إدارة المتجر</p>
+      </div>
+      
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="#" class="nav-link active" onclick="openTab('ordersTab')">
+            <i class="fas fa-shopping-cart"></i>
+            <span>الطلبات</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('inquiriesTab')">
+            <i class="fas fa-question-circle"></i>
+            <span>الاستفسارات</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('suggestionsTab')">
+            <i class="fas fa-lightbulb"></i>
+            <span>الاقتراحات</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link" onclick="openTab('messagesTab')">
+            <i class="fas fa-envelope"></i>
+            <span>الرسائل المباشرة</span>
+          </a>
+        </li>
+      </ul>
+      
+      <button class="logout-btn" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>تسجيل الخروج</span>
+      </button>
+    </div>
+    
+    <!-- المحتوى الرئيسي -->
+    <div class="main-content">
+      <div class="header">
+        <h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم</h1>
+        <div class="user-info">
+          <span class="user-name">مرحبًا، Admin</span>
+          <img src="https://i.postimg.cc/W15J2BTn/Whats.jpg" alt="User Avatar">
+        </div>
+      </div>
+      
+      <!-- بطاقات الإحصائيات -->
+      <div class="stats-cards">
+        <div class="stat-card orders">
+          <h3><i class="fas fa-shopping-cart"></i> الطلبات</h3>
+          <div class="value" id="ordersCount">0</div>
+          <div class="change positive"><i class="fas fa-arrow-up"></i> 12% عن الشهر الماضي</div>
+        </div>
+        
+        <div class="stat-card inquiries">
+          <h3><i class="fas fa-question-circle"></i> الاستفسارات</h3>
+          <div class="value" id="inquiriesCount">0</div>
+          <div class="change negative"><i class="fas fa-arrow-down"></i> 5% عن الشهر الماضي</div>
+        </div>
+        
+        <div class="stat-card suggestions">
+          <h3><i class="fas fa-lightbulb"></i> الاقتراحات</h3>
+          <div class="value" id="suggestionsCount">0</div>
+          <div class="change positive"><i class="fas fa-arrow-up"></i> 8% عن الشهر الماضي</div>
+        </div>
+      </div>
+      
+      <!-- قسم الطلبات -->
+      <div id="ordersTab" class="section tab-content active">
+        <div class="section-header">
+          <h2><i class="fas fa-shopping-cart"></i> إدارة الطلبات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
             </button>
-            <button class="danger" onclick="deleteOrder(${o.id})">حذف</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      }
-    } catch (err) {
-      out.innerHTML = `<div class="err">${String(err.message)}</div>`;
-      tbody.innerHTML = `<tr><td colspan="8" class="err">فشل تحميل الطلبات</td></tr>`;
+            <button class="btn btn-outline">
+              <i class="fas fa-download"></i> تصدير
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>العميل</th>
+                <th>ID اللاعب</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>الحالة</th>
+                <th>رقم التحويل</th>
+                <th>إثبات الدفع</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="ordersList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الاستفسارات -->
+      <div id="inquiriesTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-question-circle"></i> إدارة الاستفسارات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>البريد الإلكتروني</th>
+                <th>التاريخ</th>
+                <th>الرسالة</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="inquiriesList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الاقتراحات -->
+      <div id="suggestionsTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-lightbulb"></i> إدارة الاقتراحات</h2>
+          <div class="actions">
+            <button class="btn btn-outline">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>طريقة التواصل</th>
+                <th>التاريخ</th>
+                <th>الاقتراح</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="suggestionsList">
+              <!-- سيتم ملؤها بالبيانات -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- قسم الرسائل المباشرة -->
+      <div id="messagesTab" class="section tab-content">
+        <div class="section-header">
+          <h2><i class="fas fa-envelope"></i> إرسال رسالة مباشرة</h2>
+        </div>
+        
+        <div class="message-form">
+          <div class="form-group">
+            <label for="clientEmail">بريد العميل:</label>
+            <input type="email" id="clientEmail" class="form-control" placeholder="أدخل البريد الإلكتروني للعميل">
+          </div>
+          <div class="form-group">
+            <label for="emailSubject">عنوان الرسالة:</label>
+            <input type="text" id="emailSubject" class="form-control" placeholder="أدخل عنوان الرسالة">
+          </div>
+          <div class="form-group">
+            <label for="emailMessage">نص الرسالة:</label>
+            <textarea id="emailMessage" class="form-control" placeholder="اكتب محتوى الرسالة هنا..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="sendDirectMessage()">
+            <i class="fas fa-paper-plane"></i> إرسال الرسالة
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- مودال الرد -->
+  <div id="replyModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-reply"></i> رد على الاستفسار</h3>
+        <button class="close" onclick="closeReplyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="originalMessage" class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          الرسالة الأصلية من العميل
+        </div>
+        <div class="form-group">
+          <label for="replyText">الرد:</label>
+          <textarea id="replyText" class="form-control" placeholder="اكتب ردك هنا..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeReplyModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="sendReply()">إرسال الرد</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- مودال معاينة الصورة -->
+  <div id="imageModal" class="image-modal">
+    <div class="image-modal-content">
+      <button class="close-image-modal" onclick="closeImageModal()">&times;</button>
+      <img id="modalImage" src="" alt="معاينة الصورة">
+    </div>
+  </div>
+
+  <script>
+    // بيانات التطبيق
+    let currentInquiryId = null;
+    let currentInquiryEmail = null;
+    let currentInquiryMessage = null;
+    let orders = [];
+    let inquiries = [];
+    let suggestions = [];
+
+    // تحميل البيانات عند فتح الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+      loadOrders();
+      loadInquiries();
+      loadSuggestions();
+    });
+
+    // وظائف التبويب
+    function openTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
     }
-  }
 
-  async function loadInquiries() {
-    const out = document.getElementById("inquiriesMsg");
-    const tbody = document.getElementById("inquiriesList");
-    out.textContent = "تحميل...";
-    tbody.innerHTML = "";
+    // تحميل الطلبات
+    async function loadOrders() {
+      try {
+        showLoader('#ordersList');
+        
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/orders", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الطلبات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الطلبات');
+        
+        orders = data.data || [];
+        document.getElementById('ordersCount').textContent = orders.length;
+        
+        const container = document.getElementById("ordersList");
+        container.innerHTML = "";
 
-    try {
-      const data = await safeFetchJson("/api/admin/inquiries", { credentials: "include" });
-      const list = data.data || [];
-      out.innerHTML = `<span class="ok">عدد الاستفسارات: ${list.length}</span>`;
+        if (!Array.isArray(orders)) {
+          throw new Error('بيانات الطلبات غير صالحة');
+        }
 
-      if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="muted">لا يوجد</td></tr>`;
+        if (orders.length === 0) {
+          container.innerHTML = `<tr><td colspan="8" style="text-align: center;">لا توجد طلبات لعرضها</td></tr>`;
+          return;
+        }
+
+        orders.forEach(order => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>
+              <strong>${order.name}</strong><br>
+              <small>${order.email}</small>
+            </td>
+            <td>${order.playerId}</td>
+            <td>${order.type}<br><small>${order.ucAmount || order.bundle}</small></td>
+            <td>${order.totalAmount} ج.م</td>
+            <td>
+              <span class="status">
+                ${order.status === 'تم الدفع' ? '<i class="fas fa-check-circle" style="color: var(--success);"></i> تم الدفع' : 
+                   order.status === 'قيد الانتظار' ? '<i class="fas fa-hourglass-half" style="color: var(--warning);"></i> قيد الانتظار' :
+                   '<i class="fas fa-times-circle" style="color: var(--danger);"></i> لم يتم الدفع'}
+              </span>
+            </td>
+            <td>${order.transactionId || 'لا يوجد'}</td>
+            <td>
+              ${order.screenshot ? `
+                <img src="${order.screenshot}" 
+                     onclick="openImageModal('${order.screenshot}')"
+                     class="screenshot-preview">
+              ` : 'لا يوجد'}
+            </td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm ${order.status === 'تم الدفع' ? 'btn-warning' : 'btn-success'}" 
+                        onclick="updateStatus(${order.id}, '${order.status === 'تم الدفع' ? 'لم يتم الدفع' : 'تم الدفع'}')">
+                  <i class="fas ${order.status === 'تم الدفع' ? 'fa-times' : 'fa-check'}"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteOrder(${order.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading orders:", error);
+        showError('#ordersList', "حدث خطأ أثناء تحميل الطلبات: " + error.message);
+      }
+    }
+
+    // معاينة الصورة
+    function openImageModal(src) {
+      document.getElementById('modalImage').src = src;
+      document.getElementById('imageModal').classList.add('show');
+    }
+
+    // إغلاق معاينة الصورة
+    function closeImageModal() {
+      document.getElementById('imageModal').classList.remove('show');
+    }
+
+    // تحميل الاستفسارات
+    async function loadInquiries() {
+      try {
+        showLoader('#inquiriesList');
+        
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/inquiries", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الاستفسارات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الاستفسارات');
+        
+        inquiries = data.data || [];
+        document.getElementById('inquiriesCount').textContent = inquiries.length;
+        
+        const container = document.getElementById("inquiriesList");
+        container.innerHTML = "";
+
+        if (!Array.isArray(inquiries)) {
+          throw new Error('بيانات الاستفسارات غير صالحة');
+        }
+
+        if (inquiries.length === 0) {
+          container.innerHTML = `<tr><td colspan="5" style="text-align: center;">لا توجد استفسارات لعرضها</td></tr>`;
+          return;
+        }
+
+        inquiries.forEach(inquiry => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${inquiry.email}</td>
+            <td>${new Date(inquiry.created_at).toLocaleString()}</td>
+            <td>${inquiry.message.length > 50 ? inquiry.message.substring(0, 50) + '...' : inquiry.message}</td>
+            <td>
+              <span class="badge ${inquiry.status === 'تم الرد' ? 'badge-success' : 'badge-warning'}">
+                ${inquiry.status}
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-info" 
+                        onclick="openReplyModal(${inquiry.id}, '${inquiry.email.replace(/'/g, "\\'")}', '${inquiry.message.replace(/'/g, "\\'")}')">
+                  <i class="fas fa-reply"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteInquiry(${inquiry.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading inquiries:", error);
+        showError('#inquiriesList', "حدث خطأ أثناء تحميل الاستفسارات: " + error.message);
+      }
+    }
+
+    // تحميل الاقتراحات
+    async function loadSuggestions() {
+      try {
+        showLoader('#suggestionsList');
+        
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/suggestions", {
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في جلب الاقتراحات');
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'فشل في تحميل الاقتراحات');
+        
+        suggestions = data.data || [];
+        document.getElementById('suggestionsCount').textContent = suggestions.length;
+        
+        const container = document.getElementById("suggestionsList");
+        container.innerHTML = "";
+
+        if (!Array.isArray(suggestions)) {
+          throw new Error('بيانات الاقتراحات غير صالحة');
+        }
+
+        if (suggestions.length === 0) {
+          container.innerHTML = `<tr><td colspan="5" style="text-align: center;">لا توجد اقتراحات لعرضها</td></tr>`;
+          return;
+        }
+
+        suggestions.forEach(suggestion => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${suggestion.name}</td>
+            <td>${suggestion.contact}</td>
+            <td>${new Date(suggestion.created_at).toLocaleString()}</td>
+            <td>${suggestion.message.length > 50 ? suggestion.message.substring(0, 50) + '...' : suggestion.message}</td>
+            <td>
+              <div style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-primary" 
+                        onclick="contactSuggestion('${suggestion.contact.replace(/'/g, "\\'")}')">
+                  <i class="fas fa-envelope"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteSuggestion(${suggestion.id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          container.appendChild(row);
+        });
+      } catch (error) {
+        console.error("Error loading suggestions:", error);
+        showError('#suggestionsList', "حدث خطأ أثناء تحميل الاقتراحات: " + error.message);
+      }
+    }
+
+    // التواصل مع صاحب الاقتراح
+    function contactSuggestion(contact) {
+      document.getElementById('clientEmail').value = contact.includes('@') ? contact : '';
+      document.getElementById('emailSubject').value = "رد على اقتراحك";
+      openTab('messagesTab');
+      document.getElementById('emailMessage').focus();
+    }
+
+    // حذف الاقتراح
+    async function deleteSuggestion(id) {
+      if (confirm("هل أنت متأكد من حذف هذا الاقتراح؟")) {
+        try {
+          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-suggestion", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الاقتراح');
+          
+          showAlert('success', 'تم حذف الاقتراح بنجاح');
+          loadSuggestions();
+        } catch (error) {
+          console.error("Error deleting suggestion:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الاقتراح: " + error.message);
+        }
+      }
+    }
+
+    // فتح مودال الرد
+    function openReplyModal(id, email, message) {
+      currentInquiryId = id;
+      currentInquiryEmail = email;
+      currentInquiryMessage = message;
+      
+      document.getElementById("originalMessage").innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        <strong>الرسالة الأصلية من ${email}:</strong><br>
+        ${message}
+      `;
+      document.getElementById("replyText").value = "";
+      document.getElementById("replyModal").classList.add('show');
+    }
+
+    // إغلاق مودال الرد
+    function closeReplyModal() {
+      document.getElementById("replyModal").classList.remove('show');
+    }
+
+    // إرسال الرد
+    async function sendReply() {
+      const replyText = document.getElementById("replyText").value.trim();
+      if (!replyText) {
+        showAlert('warning', 'يرجى كتابة رد');
         return;
       }
 
-      for (const x of list) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${x.name || ""}</td>
-          <td>${x.email}</td>
-          <td class="muted">${x.created_at}</td>
-          <td>${x.message}</td>
-          <td>${x.status}</td>
-          <td>
-            <button class="btn" onclick="replyInquiry(${x.id}, '${escapeQuotes(x.email)}', '${escapeQuotes(x.message)}')">رد</button>
-            <button class="danger" onclick="deleteInquiry(${x.id})">حذف</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+      try {
+        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/reply-inquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            inquiryId: currentInquiryId,
+            email: currentInquiryEmail,
+            message: currentInquiryMessage,
+            reply: replyText
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          showAlert('success', 'تم إرسال الرد بنجاح');
+          closeReplyModal();
+          loadInquiries();
+        } else {
+          throw new Error(result.message || "فشل إرسال الرد");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        showAlert('danger', "حدث خطأ أثناء محاولة الإرسال: " + error.message);
       }
-    } catch (err) {
-      out.innerHTML = `<div class="err">${String(err.message)}</div>`;
-      tbody.innerHTML = `<tr><td colspan="6" class="err">فشل تحميل الاستفسارات</td></tr>`;
     }
-  }
 
-  async function loadSuggestions() {
-    const out = document.getElementById("suggestionsMsg");
-    const tbody = document.getElementById("suggestionsList");
-    out.textContent = "تحميل...";
-    tbody.innerHTML = "";
+    // إرسال رسالة مباشرة
+    async function sendDirectMessage() {
+      const email = document.getElementById("clientEmail").value.trim();
+      const subject = document.getElementById("emailSubject").value.trim();
+      const message = document.getElementById("emailMessage").value.trim();
 
-    try {
-      const data = await safeFetchJson("/api/admin/suggestions", { credentials: "include" });
-      const list = data.data || [];
-      out.innerHTML = `<span class="ok">عدد الاقتراحات: ${list.length}</span>`;
-
-      if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="muted">لا يوجد</td></tr>`;
+      if (!email || !subject || !message) {
+        showAlert('warning', 'يرجى ملء جميع الحقول');
         return;
       }
 
-      for (const x of list) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${x.name}</td>
-          <td>${x.contact}</td>
-          <td class="muted">${x.created_at}</td>
-          <td>${x.message}</td>
-          <td>
-            <button class="danger" onclick="deleteSuggestion(${x.id})">حذف</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+      if (!confirm(`هل تريد إرسال هذه الرسالة إلى ${email}؟`)) {
+        return;
       }
-    } catch (err) {
-      out.innerHTML = `<div class="err">${String(err.message)}</div>`;
-      tbody.innerHTML = `<tr><td colspan="5" class="err">فشل تحميل الاقتراحات</td></tr>`;
-    }
-  }
 
-  function escapeQuotes(s) {
-    return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  }
+      try {
+        const res = await fetch("https://https://king-store-esport.vercel.app/api/admin/send-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, subject, message })
+        });
 
-  async function toggleStatus(id, status) {
-    try {
-      await safeFetchJson("/api/admin/update-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ id, status })
-      });
-      await loadOrders();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function deleteOrder(id) {
-    if (!confirm("حذف الطلب؟")) return;
-    try {
-      await safeFetchJson(`/api/admin/orders/${id}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-      await loadOrders();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function deleteInquiry(id) {
-    if (!confirm("حذف الاستفسار؟")) return;
-    try {
-      await safeFetchJson(`/api/admin/inquiries/${id}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-      await loadInquiries();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function deleteSuggestion(id) {
-    if (!confirm("حذف الاقتراح؟")) return;
-    try {
-      await safeFetchJson(`/api/admin/suggestions/${id}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-      await loadSuggestions();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function replyInquiry(inquiryId, email, message) {
-    const reply = prompt("اكتب الرد:");
-    if (!reply) return;
-
-    try {
-      await safeFetchJson("/api/admin/reply-inquiry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ inquiryId, email, message, reply })
-      });
-      await loadInquiries();
-      alert("تم إرسال الرد");
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  async function sendDirectMessage() {
-    const email = document.getElementById("clientEmail").value.trim();
-    const subject = document.getElementById("emailSubject").value.trim();
-    const message = document.getElementById("emailMessage").value.trim();
-    const out = document.getElementById("sendMsg");
-
-    if (!email || !subject || !message) {
-      out.innerHTML = '<div class="err">املأ كل الحقول</div>';
-      return;
+        const result = await res.json();
+        if (result.success) {
+          showAlert('success', 'تم إرسال الرسالة بنجاح');
+          document.getElementById("clientEmail").value = "";
+          document.getElementById("emailSubject").value = "";
+          document.getElementById("emailMessage").value = "";
+        } else {
+          throw new Error(result.message || "فشل إرسال الرسالة");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        showAlert('danger', "حدث خطأ أثناء محاولة الإرسال: " + error.message);
+      }
     }
 
-    out.textContent = "جاري الإرسال...";
-    try {
-      await safeFetchJson("/api/admin/send-message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, subject, message })
-      });
-      out.innerHTML = '<div class="ok">تم الإرسال</div>';
-      document.getElementById("clientEmail").value = "";
-      document.getElementById("emailSubject").value = "";
-      document.getElementById("emailMessage").value = "";
-    } catch (err) {
-      out.innerHTML = `<div class="err">${String(err.message)}</div>`;
+    // تحديث حالة الطلب
+    async function updateStatus(id, status) {
+      try {
+        const res = await fetch("https://king-store-esport.vercel.app/api/admin/update-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ id, status })
+        });
+        
+        if (!res.ok) throw new Error('فشل في تحديث الحالة');
+        
+        showAlert('success', 'تم تحديث حالة الطلب بنجاح');
+        loadOrders();
+      } catch (error) {
+        console.error("Error updating status:", error);
+        showAlert('danger', "حدث خطأ أثناء تحديث الحالة: " + error.message);
+      }
     }
-  }
 
-  async function logout() {
-    try {
-      await safeFetchJson("/api/admin/logout", {
-        method: "POST",
-        credentials: "include"
-      });
-      location.href = "/login.html";
-    } catch (err) {
-      alert(err.message);
+    // حذف الطلب
+    async function deleteOrder(id) {
+      if (confirm("هل أنت متأكد من حذف الطلب؟")) {
+        try {
+          const res = await fetch("https://king-store-esport.vercel.app/api/admin/delete-order", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الطلب');
+          
+          showAlert('success', 'تم حذف الطلب بنجاح');
+          loadOrders();
+        } catch (error) {
+          console.error("Error deleting order:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الطلب: " + error.message);
+        }
+      }
     }
-  }
 
-  async function reloadAll() {
-    await loadOrders();
-    await loadInquiries();
-    await loadSuggestions();
-  }
+    // حذف الاستفسار
+    async function deleteInquiry(id) {
+      if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
+        try {
+          const res = await fetch("https://king-store-esport.vercel.app/api/admin/delete-inquiry", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id })
+          });
+          
+          if (!res.ok) throw new Error('فشل في حذف الاستفسار');
+          
+          showAlert('success', 'تم حذف الاستفسار بنجاح');
+          loadInquiries();
+        } catch (error) {
+          console.error("Error deleting inquiry:", error);
+          showAlert('danger', "حدث خطأ أثناء حذف الاستفسار: " + error.message);
+        }
+      }
+    }
 
-  document.addEventListener("DOMContentLoaded", reloadAll);
-</script>
+    // تسجيل الخروج
+    async function logout() {
+      try {
+        const res = await fetch("https://king-store-esport.vercel.app/api/admin/logout", { 
+          method: "POST",
+          credentials: "include"
+        });
+        
+        if (!res.ok) throw new Error('فشل في تسجيل الخروج');
+        
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error("Error logging out:", error);
+        showAlert('danger', "حدث خطأ أثناء تسجيل الخروج: " + error.message);
+      }
+    }
+
+    // وظائف مساعدة
+    function showLoader(selector) {
+      const container = document.querySelector(selector);
+      if (container) {
+        container.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 40px;">
+              <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+              <p style="margin-top: 15px; color: #666;">جاري التحميل...</p>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function showError(selector, message) {
+      const container = document.querySelector(selector);
+      if (container) {
+        container.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 30px; color: var(--danger);">
+              <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 15px; color: var(--danger);"></i>
+              <p style="font-weight: 600;">${message}</p>
+              <button class="btn btn-outline" onclick="location.reload()" style="margin-top: 15px;">
+                <i class="fas fa-sync-alt"></i> إعادة المحاولة
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    function showAlert(type, message) {
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        ${message}
+      `;
+      
+      const header = document.querySelector('.section-header');
+      if (header) {
+        header.parentNode.insertBefore(alert, header.nextSibling);
+        
+        setTimeout(() => {
+          alert.style.opacity = '0';
+          setTimeout(() => alert.remove(), 300);
+        }, 5000);
+      }
+    }
+  </script>
 </body>
 </html>
