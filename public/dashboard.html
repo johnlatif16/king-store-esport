@@ -1493,7 +1493,7 @@
       }
 
       try {
-        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/send-message", {
+        const res = await fetch("https://https://king-store-esport.vercel.app/api/admin/send-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -1518,7 +1518,7 @@
     // تحديث حالة الطلب
     async function updateStatus(id, status) {
       try {
-        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/update-status", {
+        const res = await fetch("https://king-store-esport.vercel.app/api/admin/update-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -1539,7 +1539,7 @@
     async function deleteOrder(id) {
       if (confirm("هل أنت متأكد من حذف الطلب؟")) {
         try {
-          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-order", {
+          const res = await fetch("https://king-store-esport.vercel.app/api/admin/delete-order", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -1561,7 +1561,7 @@
     async function deleteInquiry(id) {
       if (confirm("هل أنت متأكد من حذف هذا الاستفسار؟")) {
         try {
-          const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/delete-inquiry", {
+          const res = await fetch("https://king-store-esport.vercel.app/api/admin/delete-inquiry", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -1582,7 +1582,7 @@
     // تسجيل الخروج
     async function logout() {
       try {
-        const res = await fetch("https://king-store-esport-production.up.railway.app/api/admin/logout", { 
+        const res = await fetch("https://king-store-esport.vercel.app/api/admin/logout", { 
           method: "POST",
           credentials: "include"
         });
